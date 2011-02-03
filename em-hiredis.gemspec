@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   s.summary     = %q{Eventmachine redis client}
   s.description = %q{Eventmachine redis client using hiredis native parser}
 
-  s.add_dependency 'hiredis'
+  s.add_dependency 'hiredis', '~> 0.2.0'
 
   s.rubyforge_project = "em-hiredis"
 
