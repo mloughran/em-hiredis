@@ -12,6 +12,8 @@ Gem::Specification.new do |s|
   s.summary     = %q{Eventmachine redis client}
   s.description = %q{Eventmachine redis client using hiredis native parser}
 
+  s.add_dependency 'hiredis'
+
   s.rubyforge_project = "em-hiredis"
 
   s.files         = `git ls-files`.split("\n")
