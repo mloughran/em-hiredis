@@ -68,6 +68,16 @@ module EM::Hiredis
       @reconnecting = false
     end
 
+    # Indicates that commands have been sent to redis but a reply has not yet 
+    # been received.
+    # 
+    # This can be useful for example to avoid stopping the 
+    # eventmachine reactor while there are outstanding commands
+    # 
+    def pending_commands?
+      @connected && @defs.size > 0
+    end
+
     def subscribe(channel)
       @subs << channel
       method_missing(:subscribe, channel)
