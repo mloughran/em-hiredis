@@ -3,11 +3,11 @@ Getting started
 
 Connect to redis
 
-    redis_client = EM::Hiredis.connect
+    redis = EM::Hiredis::Client.connect
 
 The client is a deferrable which succeeds when the underlying connection is established so you can bind to this. This isn't necessary however - any commands sent before the connection is established (or while reconnecting) will be sent to redis on connect.
 
-    redis_client.callback { puts "Redis now connected" }
+    redis.callback { puts "Redis now connected" }
 
 All redis commands are available without any remapping of names
 
