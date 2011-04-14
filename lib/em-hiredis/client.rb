@@ -1,8 +1,8 @@
-module EM::Hiredis
+module EventMachine::Hiredis
   class Client
     PUBSUB_MESSAGES = %w{message pmessage}.freeze
 
-    include EM::Hiredis::EventEmitter
+    include EventMachine::Hiredis::EventEmitter
     include EM::Deferrable
 
     def self.connect(host = 'localhost', port = 6379)
@@ -124,7 +124,7 @@ module EM::Hiredis
     private
 
     def reconnect
-      EM::Hiredis.logger.debug("Trying to reconnect to Redis")
+      EventMachine::Hiredis.logger.debug("Trying to reconnect to Redis")
       @connection.reconnect @host, @port
     end
   end

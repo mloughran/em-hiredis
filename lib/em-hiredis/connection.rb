@@ -1,8 +1,8 @@
 require 'hiredis/reader'
 
-module EM::Hiredis
+module EventMachine::Hiredis
   class Connection < EM::Connection
-    include EM::Hiredis::EventEmitter
+    include EventMachine::Hiredis::EventEmitter
 
     def initialize(host, port)
       super
@@ -10,7 +10,7 @@ module EM::Hiredis
     end
 
     def connection_completed
-      EM::Hiredis.logger.info("Connected to Redis")
+      EventMachine::Hiredis.logger.info("Connected to Redis")
       @reader = ::Hiredis::Reader.new
       emit(:connected)
     end
@@ -23,7 +23,7 @@ module EM::Hiredis
     end
 
     def unbind
-      EM::Hiredis.logger.info("Disconnected from Redis")
+      EventMachine::Hiredis.logger.info("Disconnected from Redis")
       emit(:closed)
     end
 

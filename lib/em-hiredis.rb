@@ -1,6 +1,6 @@
 require 'eventmachine'
 
-module EM
+module EventMachine
   module Hiredis
     class << self
       attr_writer :logger

@@ -1,4 +1,4 @@
-module EM::Hiredis
+module EventMachine::Hiredis
   module EventEmitter
     def on(event, &listener)
       _listeners[event] << listener

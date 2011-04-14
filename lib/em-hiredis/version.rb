@@ -1,4 +1,4 @@
-module EM
+module EventMachine
   module Hiredis
     VERSION = "0.0.1"
   end

@@ -4,7 +4,7 @@ require "em-hiredis/version"
 
 Gem::Specification.new do |s|
   s.name        = "em-hiredis"
-  s.version     = EM::Hiredis::VERSION
+  s.version     = EventMachine::Hiredis::VERSION
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Martyn Loughran"]
   s.email       = ["me@mloughran.com"]
