@@ -1,4 +1,6 @@
 source "http://rubygems.org"
 
-# Specify your gem's dependencies in em-hiredis.gemspec
-gemspec
+gem "em-spec", :git => "git://github.com/bcg/em-spec.git"
+gem "eventmachine"
+gem "hiredis"
+gem "rspec"

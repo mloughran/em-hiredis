@@ -59,3 +59,21 @@ This example should explain things. Once a redis connection is in a pubsub state
         p [:publisherror, e]
       }
     }
+
+Hacking
+-------
+
+Hacking on em-hiredis is pretty simple, make sure you have Bundler installed:
+
+    gem install bundler
+    bundle
+
+To run all the tests:
+
+    rake
+
+To run an individual test:
+
+    bundle exec rspec spec/redis_commands_spec.rb
+
+Much thanks to the em-redis gem for getting this gem bootstrapped with some tests.
