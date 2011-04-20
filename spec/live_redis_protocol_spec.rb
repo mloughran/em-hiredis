@@ -474,9 +474,8 @@ describe EventMachine::Hiredis, "connected to a db containing three linked lists
   end
 
   it "collates a sorted set of data" do
-    pending("not supported yet")
     set do |redis|
-      redis.sort("foo", "BY *_sort", "GET *_data") do |r|
+      redis.sort("foo", "BY", "*_sort", "GET", "*_data") do |r|
         r.should == ["bar", "foo"]
         done
       end

@@ -478,45 +478,6 @@ describe EventMachine::Hiredis, "commands" do
     end
   end
 
-  it "sorts" do
-    pending("can't figure out sort yet")
-    connect do |redis|
-      # The 'Dogs' is capitialized on purpose
-      redis['dog_1'] = 'louie'
-      redis.rpush 'Dogs', 1
-      redis['dog_2'] = 'lucy'
-      redis.rpush 'Dogs', 2
-      redis['dog_3'] = 'max'
-      redis.rpush 'Dogs', 3
-      redis['dog_4'] = 'taj'
-      redis.rpush 'Dogs', 4
-      redis.sort('Dogs', :get => 'dog_*', :limit => [0,1]) { |r| r.should == ['louie'] }
-      redis.sort('Dogs', :get => 'dog_*', :limit => [0,1], :order => 'desc alpha') { |r| r.should == ['taj'] }
-      redis.ping { done }
-    end
-  end
-
-  it "handles array of :get using SORT" do
-    pending("can't figure out sort yet")
-    connect do |redis|
-      redis['dog:1:name'] = 'louie'
-      redis['dog:1:breed'] = 'mutt'
-      redis.rpush 'dogs', 1
-      redis['dog:2:name'] = 'lucy'
-      redis['dog:2:breed'] = 'poodle'
-      redis.rpush 'dogs', 2
-      redis['dog:3:name'] = 'max'
-      redis['dog:3:breed'] = 'hound'
-      redis.rpush 'dogs', 3
-      redis['dog:4:name'] = 'taj'
-      redis['dog:4:breed'] = 'terrier'
-      redis.rpush 'dogs', 4
-      redis.sort('dogs', :get => ['dog:*:name', 'dog:*:breed'], :limit => [0,1]) { |r| r.should == ['louie', 'mutt'] }
-      redis.sort('dogs', :get => ['dog:*:name', 'dog:*:breed'], :limit => [0,1], :order => 'desc alpha') { |r| r.should == ['taj', 'terrier'] }
-      redis.ping { done }
-    end
-  end
-
   it "counts the members of a zset" do
     connect do |redis|
       redis.sadd "set", 'key1'
@@ -760,19 +721,6 @@ describe EventMachine::Hiredis, "commands" do
     end
   end
 
-  # Tests are disabled due uncatchable exceptions. We should use on_error callback,
-  # intead of raising exceptions in random places.
-  #
-  # it "should raise error when invoke MONITOR" do
-  #   # lambda { redis.monitor }.should.raise
-  #   done
-  # end
-  # 
-  # it "should raise error when invoke SYNC" do
-  #   # lambda { redis.sync }.should.raise
-  #   done
-  # end
-
   it "runs MULTI without a block" do
     connect do |redis|
       redis.multi
@@ -897,6 +845,80 @@ describe EventMachine::Hiredis, "monitor" do
         if @lines.size == 2
           @lines.first.should == "OK"
           @lines.last.should =~ /monitor/
+          done
+        end
+      end
+    end
+  end
+end
+
+describe EventMachine::Hiredis, "sorting" do
+  context "with some simple sorting data" do
+    def set(&blk)
+      connect do |redis|
+        redis.set('dog_1', 'louie')
+        redis.rpush 'Dogs', 1
+        redis.set('dog_2', 'lucy')
+        redis.rpush 'Dogs', 2
+        redis.set('dog_3', 'max')
+        redis.rpush 'Dogs', 3
+        redis.set('dog_4', 'taj')
+        redis.rpush 'Dogs', 4
+        blk.call(redis)
+      end
+    end
+
+    it "sorts with a limit" do
+      set do |redis|
+        redis.sort('Dogs', "GET", 'dog_*', "LIMIT", "0", "1") do |r|
+          r.should == ['louie']
+          done
+        end
+      end
+    end
+
+    it "sorts with a limit and order" do
+      set do |redis|
+        redis.sort('Dogs', "GET", 'dog_*', "LIMIT", "0", "1", "desc", "alpha") do |r|
+          r.should == ['taj']
+          done
+        end
+      end
+    end
+  end
+
+  context "with more complex sorting data" do
+    def set(&blk)
+      connect do |redis|
+        redis.set('dog:1:name', 'louie')
+        redis.set('dog:1:breed', 'mutt')
+        redis.rpush 'dogs', 1
+        redis.set('dog:2:name', 'lucy')
+        redis.set('dog:2:breed', 'poodle')
+        redis.rpush 'dogs', 2
+        redis.set('dog:3:name', 'max')
+        redis.set('dog:3:breed', 'hound')
+        redis.rpush 'dogs', 3
+        redis.set('dog:4:name', 'taj')
+        redis.set('dog:4:breed', 'terrier')
+        redis.rpush 'dogs', 4
+        blk.call(redis)
+      end
+    end
+
+    it "handles multiple GETs" do
+      set do |redis|
+        redis.sort('dogs', 'GET', 'dog:*:name', 'GET', 'dog:*:breed', 'LIMIT', '0', '1') do |r|
+          r.should == ['louie', 'mutt']
+          done
+        end
+      end
+    end
+
+    it "handles multiple GETs with an order" do
+      set do |redis|
+        redis.sort('dogs', 'GET', 'dog:*:name', 'GET', 'dog:*:breed', 'LIMIT', '0', '1', 'desc', 'alpha') do |r|
+          r.should == ['taj', 'terrier']
           done
         end
       end
