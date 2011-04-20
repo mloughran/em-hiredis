@@ -115,6 +115,8 @@ module EventMachine::Hiredis
       method_missing(:monitor, &blk)
     end
 
+    private
+
     def method_missing(sym, *args)
       deferred = EM::DefaultDeferrable.new
       # Shortcut for defining the callback case with just a block
@@ -132,8 +134,6 @@ module EventMachine::Hiredis
 
       deferred
     end
-
-    private
 
     def reconnect
       EventMachine::Hiredis.logger.debug("Trying to reconnect to Redis")
