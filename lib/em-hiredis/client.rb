@@ -105,9 +105,9 @@ module EventMachine::Hiredis
       method_missing(:punsubscribe, channel)
     end
 
-    def select(db)
+    def select(db, &blk)
       @db = db
-      method_missing(:select, db)
+      method_missing(:select, db, &blk)
     end
 
     def monitor(&blk)

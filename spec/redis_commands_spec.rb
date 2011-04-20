@@ -684,11 +684,24 @@ describe EventMachine::Hiredis, "commands" do
   end
 
   it "SELECTs database" do
-    pending("doesn't seem to work")
     connect do |redis|
-      redis.set("foo", "bar")
-      redis.select(4)
-      redis.get('foo') { |r| r.should == nil; done }
+      redis.set("foo", "bar") do |set_response|
+        redis.select("9") do |select_response|
+          redis.get("foo") do |get_response|
+            get_response.should == nil; done
+          end
+        end
+      end
+    end
+  end
+
+  it "SELECTs database without a callback" do
+    connect do |redis|
+      redis.select("9")
+      redis.incr("foo") do |response|
+        response.should == 1
+        done
+      end
     end
   end
 

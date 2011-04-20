@@ -10,7 +10,7 @@ module SpecHelper
   def connect
     em do
       redis = EventMachine::Hiredis::Client.connect
-      redis.flushdb
+      redis.flushall
       yield redis
     end
   end
