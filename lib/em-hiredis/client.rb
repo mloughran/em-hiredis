@@ -130,7 +130,7 @@ module EventMachine::Hiredis
         end
       end
 
-      return deferred
+      deferred
     end
 
     private
