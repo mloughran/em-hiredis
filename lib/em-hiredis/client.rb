@@ -15,7 +15,7 @@ module EventMachine::Hiredis
       @defs = []
       @connection = EM.connect(host, port, Connection, host, port)
 
-      @connection.on(:closed) {
+      @connection.on(:closed) do
         if @connected
           @defs.each { |d| d.fail("Redis disconnected") }
           @defs = []
@@ -26,9 +26,9 @@ module EventMachine::Hiredis
         else
           EM.add_timer(1) { reconnect }
         end
-      }
+      end
 
-      @connection.on(:connected) {
+      @connection.on(:connected) do
         @connected = true
         select(@db) if @db
         @subs.each { |s| method_missing(:subscribe, s) }
@@ -39,9 +39,9 @@ module EventMachine::Hiredis
           @reconnecting = false
           emit(:reconnected)
         end
-      }
+      end
 
-      @connection.on(:message) { |reply|
+      @connection.on(:message) do |reply|
         if RuntimeError === reply
           raise "Replies out of sync: #{reply.inspect}" if @defs.empty?
           deferred = @defs.shift
@@ -57,28 +57,30 @@ module EventMachine::Hiredis
               emit(:pmessage, subscription, d1, d2)
             end
           else
-            if @defs.empty? && @monitor_callback
-              @monitor_callback.call(reply)
-            elsif @defs.empty?
-              raise "Replies out of sync: #{reply.inspect}"
+            if @defs.empty?
+              if @monitor_callback
+                @monitor_callback.call(reply)
+              else
+                raise "Replies out of sync: #{reply.inspect}"
+              end
             else
               deferred = @defs.shift
               deferred.succeed(reply) if deferred
             end
           end
         end
-      }
+      end
 
       @connected = false
       @reconnecting = false
     end
 
-    # Indicates that commands have been sent to redis but a reply has not yet 
-    # been received.
-    # 
-    # This can be useful for example to avoid stopping the 
+    # Indicates that commands have been sent to redis but a reply has not yet
+    # been received
+    #
+    # This can be useful for example to avoid stopping the
     # eventmachine reactor while there are outstanding commands
-    # 
+    #
     def pending_commands?
       @connected && @defs.size > 0
     end
@@ -122,10 +124,10 @@ module EventMachine::Hiredis
         @connection.send_command(sym, *args)
         @defs.push(deferred)
       else
-        callback {
+        callback do
           @connection.send_command(sym, *args)
           @defs.push(deferred)
-        }
+        end
       end
 
       return deferred
