@@ -875,3 +875,19 @@ describe EventMachine::Hiredis, "with nested multi-bulk response" do
     end
   end
 end
+
+describe EventMachine::Hiredis, "monitor" do
+  it "returns monitored commands" do
+    @lines = []
+    connect do |redis|
+      redis.monitor do |line|
+        @lines << line
+        if @lines.size == 2
+          @lines.first.should == "OK"
+          @lines.last.should =~ /monitor/
+          done
+        end
+      end
+    end
+  end
+end

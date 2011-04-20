@@ -57,9 +57,14 @@ module EventMachine::Hiredis
               emit(:pmessage, subscription, d1, d2)
             end
           else
-            raise "Replies out of sync: #{reply.inspect}" if @defs.empty?
-            deferred = @defs.shift
-            deferred.succeed(reply) if deferred
+            if @defs.empty? && @monitor_callback
+              @monitor_callback.call(reply)
+            elsif @defs.empty?
+              raise "Replies out of sync: #{reply.inspect}"
+            else
+              deferred = @defs.shift
+              deferred.succeed(reply) if deferred
+            end
           end
         end
       }
@@ -101,6 +106,11 @@ module EventMachine::Hiredis
     def select(db)
       @db = db
       method_missing(:select, db)
+    end
+
+    def monitor(&blk)
+      @monitor_callback = blk
+      method_missing(:monitor, &blk)
     end
 
     def method_missing(sym, *args)
