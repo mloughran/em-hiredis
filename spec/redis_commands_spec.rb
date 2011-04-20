@@ -1,21 +1,6 @@
 require 'spec_helper'
 
 describe EventMachine::Hiredis, "commands" do
-  it "provides a logger" do
-    pending("em-hiredis doesn't provide logging of commands yet")
-    io = StringIO.new
-    log = Logger.new(io)
-    EventMachine::Hiredis.logger = log
-    connect do |redis|
-      redis.ping do
-        io.string.should include("ping")
-        done
-      end
-    end
-  end
-end
-
-describe EventMachine::Hiredis, "commands" do
   it "pings" do
     connect do |redis|
       redis.ping { |r| r.should == 'PONG'; done }
