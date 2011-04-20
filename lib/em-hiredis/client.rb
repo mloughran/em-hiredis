@@ -1,6 +1,6 @@
 module EventMachine::Hiredis
   class Client
-    PUBSUB_MESSAGES = %w{message pmessage}.freeze
+    PUBSUB_MESSAGES = Set.new(["message", "pmessage"])
 
     include EventMachine::Hiredis::EventEmitter
     include EM::Deferrable
@@ -47,7 +47,7 @@ module EventMachine::Hiredis
           deferred = @defs.shift
           deferred.fail(reply) if deferred
         else
-          if reply && PUBSUB_MESSAGES.include?(reply[0]) # reply can be nil
+          if reply && PUBSUB_MESSAGES.member?(reply[0]) # reply can be nil
             kind, subscription, d1, d2 = *reply
 
             case kind.to_sym
