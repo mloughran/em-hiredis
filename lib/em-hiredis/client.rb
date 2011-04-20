@@ -5,15 +5,19 @@ module EventMachine::Hiredis
     include EventMachine::Hiredis::EventEmitter
     include EM::Deferrable
 
+    attr_reader :host, :port, :password, :db
+
     def self.connect(host = 'localhost', port = 6379)
       new(host, port)
     end
 
-    def initialize(host, port)
-      @host, @port = host, port
-      @subs, @psubs = [], []
-      @defs = []
-      @connection = EM.connect(host, port, Connection, host, port)
+    def initialize(host, port, password = nil, db = nil)
+      @host, @port, @password, @db = host, port, password, db
+      @subs, @psubs, @defs = [], [], []
+    end
+
+    def connect
+      @connection = EM.connect(@host, @port, Connection, @host, @port)
 
       @connection.on(:closed) do
         if @connected
@@ -30,7 +34,10 @@ module EventMachine::Hiredis
 
       @connection.on(:connected) do
         @connected = true
+
         select(@db) if @db
+        auth(@password) if @password
+
         @subs.each { |s| method_missing(:subscribe, s) }
         @psubs.each { |s| method_missing(:psubscribe, s) }
         succeed
@@ -108,6 +115,11 @@ module EventMachine::Hiredis
     def select(db, &blk)
       @db = db
       method_missing(:select, db, &blk)
+    end
+
+    def auth(password, &blk)
+      @password = password
+      method_missing(:auth, password, &blk)
     end
 
     def monitor(&blk)

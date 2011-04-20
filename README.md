@@ -1,9 +1,14 @@
 Getting started
 ===============
 
-Connect to redis
+Connect to redis:
 
-    redis = EM::Hiredis::Client.connect
+    require 'em-hiredis'
+    redis = EM::Hiredis.connect
+
+Or, connect to redis with a redis URL (for a different host, port, password, DB)
+
+    redis = EM::Hiredis.connect("redis://:secretpassword@example.com:9000/4")
 
 The client is a deferrable which succeeds when the underlying connection is established so you can bind to this. This isn't necessary however - any commands sent before the connection is established (or while reconnecting) will be sent to redis on connect.
 
@@ -40,8 +45,8 @@ Pubsub
 
 This example should explain things. Once a redis connection is in a pubsub state, you must make sure you only send pubsub commands.
 
-    redis = EM::Hiredis::Client.connect
-    subscriber = EM::Hiredis::Client.connect
+    redis = EM::Hiredis.connect
+    subscriber = EM::Hiredis.connect!
 
     subscriber.subscribe('bar.0')
     subscriber.psubscribe('bar.*')

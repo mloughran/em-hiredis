@@ -1,22 +1,14 @@
 $:.unshift File.expand_path(File.dirname(__FILE__) + "/../lib")
-require 'stringio'
-require 'logger'
-
 require 'em-hiredis'
 require 'rspec'
 require 'em-spec/rspec'
 
-module SpecHelper
-  def connect
-    em do
-      redis = EventMachine::Hiredis::Client.connect
-      redis.flushall
-      yield redis
-    end
-  end
-end
+require 'support/connection_helper'
+require 'support/redis_mock'
+require 'stringio'
 
 RSpec.configure do |config|
-  config.include SpecHelper
+  config.include ConnectionHelper
   config.include EventMachine::SpecHelper
+  config.include RedisMock::Helper
 end
