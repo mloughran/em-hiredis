@@ -115,6 +115,18 @@ module EventMachine::Hiredis
       method_missing(:monitor, &blk)
     end
 
+    def info(&blk)
+      hash_processor = lambda do |response|
+        info = {}
+        response.each_line do |line|
+          key, value = line.split(":", 2)
+          info[key.to_sym] = value.chomp
+        end
+        blk.call(info)
+      end
+      method_missing(:info, &hash_processor)
+    end
+
     private
 
     def method_missing(sym, *args)

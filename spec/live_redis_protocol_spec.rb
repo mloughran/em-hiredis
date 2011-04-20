@@ -94,10 +94,8 @@ describe EventMachine::Hiredis, "connected to an empty db" do
 
   it "reads info about the db" do
     connect do |redis|
-      redis.info do |r|
-        raw_info = r.split("\r\n").map { |v| v.split(":", 2) }
-        info = Hash[*raw_info.flatten]
-        info['redis_version'].should_not be_nil
+      redis.info do |info|
+        info[:redis_version].should_not be_nil
         done
       end
     end
