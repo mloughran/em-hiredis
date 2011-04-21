@@ -46,7 +46,7 @@ Pubsub
 This example should explain things. Once a redis connection is in a pubsub state, you must make sure you only send pubsub commands.
 
     redis = EM::Hiredis.connect
-    subscriber = EM::Hiredis.connect!
+    subscriber = EM::Hiredis.connect
 
     subscriber.subscribe('bar.0')
     subscriber.psubscribe('bar.*')
