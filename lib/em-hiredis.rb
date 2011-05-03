@@ -1,6 +1,4 @@
 require 'eventmachine'
-
-require 'set'
 require 'uri'
 
 module EventMachine
