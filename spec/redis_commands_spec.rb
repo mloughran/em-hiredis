@@ -823,15 +823,13 @@ end
 
 describe EventMachine::Hiredis, "monitor" do
   it "returns monitored commands" do
-    @lines = []
     connect do |redis|
-      redis.monitor do |line|
-        @lines << line
-        if @lines.size == 2
-          @lines.first.should == "OK"
-          @lines.last.should =~ /monitor/
-          done
-        end
+      redis.monitor do |reply|
+        reply.should == "OK"
+      end
+      redis.on(:monitor) do |line|
+        line.should =~ /monitor/
+        done
       end
     end
   end

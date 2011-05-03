@@ -65,8 +65,8 @@ module EventMachine::Hiredis
             end
           else
             if @defs.empty?
-              if @monitor_callback
-                @monitor_callback.call(reply)
+              if @monitoring
+                emit(:monitor, reply)
               else
                 raise "Replies out of sync: #{reply.inspect}"
               end
@@ -125,7 +125,7 @@ module EventMachine::Hiredis
     end
 
     def monitor(&blk)
-      @monitor_callback = blk
+      @monitoring = true
       method_missing(:monitor, &blk)
     end
 
