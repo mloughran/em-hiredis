@@ -8,7 +8,7 @@ module EventMachine::Hiredis
     attr_reader :host, :port, :password, :db
 
     def self.connect(host = 'localhost', port = 6379)
-      new(host, port)
+      new(host, port).connect
     end
 
     def initialize(host, port, password = nil, db = nil)
@@ -80,6 +80,8 @@ module EventMachine::Hiredis
 
       @connected = false
       @reconnecting = false
+
+      return self
     end
 
     # Indicates that commands have been sent to redis but a reply has not yet
