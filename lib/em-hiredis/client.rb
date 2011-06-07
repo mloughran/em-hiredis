@@ -94,6 +94,10 @@ module EventMachine::Hiredis
       @connected && @defs.size > 0
     end
 
+    def connected?
+      @connected
+    end
+
     def subscribe(channel)
       @subs << channel
       method_missing(:subscribe, channel)
