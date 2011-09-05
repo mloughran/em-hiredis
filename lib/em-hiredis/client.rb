@@ -21,15 +21,17 @@ module EventMachine::Hiredis
       @connection = EM.connect(@host, @port, Connection, @host, @port)
 
       @connection.on(:closed) do
-        unless @closing_connection
-          if @connected
-            @defs.each { |d| d.fail("Redis disconnected") }
-            @defs = []
-            @deferred_status = nil
-            @connected = false
+        if @connected
+          @defs.each { |d| d.fail("Redis disconnected") }
+          @defs = []
+          @deferred_status = nil
+          @connected = false
+          unless @closing_connection
             @reconnecting = true
             reconnect
-          else
+          end
+        else
+          unless @closing_connection
             EM.add_timer(1) { reconnect }
           end
         end
@@ -151,6 +153,7 @@ module EventMachine::Hiredis
     def close_connection
       @closing_connection = true
       @connection.close_connection_after_writing
+      @defs.each
     end
 
     private
