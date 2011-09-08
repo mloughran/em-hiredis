@@ -14,6 +14,7 @@ module EventMachine::Hiredis
     def initialize(host, port, password = nil, db = nil)
       @host, @port, @password, @db = host, port, password, db
       @subs, @psubs, @defs = [], [], []
+      @closing_connection = false
     end
 
     def connect
@@ -25,10 +26,14 @@ module EventMachine::Hiredis
           @defs = []
           @deferred_status = nil
           @connected = false
-          @reconnecting = true
-          reconnect
+          unless @closing_connection
+            @reconnecting = true
+            reconnect
+          end
         else
-          EM.add_timer(1) { reconnect }
+          unless @closing_connection
+            EM.add_timer(1) { reconnect }
+          end
         end
       end
 
@@ -143,6 +148,12 @@ module EventMachine::Hiredis
         blk.call(info)
       end
       method_missing(:info, &hash_processor)
+    end
+    
+    def close_connection
+      @closing_connection = true
+      @connection.close_connection_after_writing
+      @defs.each
     end
 
     private
