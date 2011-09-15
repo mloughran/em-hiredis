@@ -2,7 +2,7 @@ module EventMachine::Hiredis
   class Client
     PUBSUB_MESSAGES = %w{message pmessage}.freeze
 
-    include EventMachine::Hiredis::EventEmitter
+    include EventEmitter
     include EM::Deferrable
 
     attr_reader :host, :port, :password, :db
