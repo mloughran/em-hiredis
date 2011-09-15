@@ -32,4 +32,4 @@ end
 require 'em-hiredis/event_emitter'
 require 'em-hiredis/connection'
 require 'em-hiredis/client'
-require 'em-hiredis/pubsub'
+require 'em-hiredis/pubsub_client'

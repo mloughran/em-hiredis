@@ -1,7 +1,5 @@
 module EventMachine::Hiredis
   class Client
-    PUBSUB_MESSAGES = %w{message pmessage}.freeze
-
     include EventEmitter
     include EM::Deferrable
 
@@ -13,7 +11,7 @@ module EventMachine::Hiredis
 
     def initialize(host, port, password = nil, db = nil)
       @host, @port, @password, @db = host, port, password, db
-      @subs, @psubs, @defs = [], [], []
+      @defs = []
       @closing_connection = false
     end
 
@@ -43,8 +41,7 @@ module EventMachine::Hiredis
         select(@db) if @db
         auth(@password) if @password
 
-        @subs.each { |s| method_missing(:subscribe, s) }
-        @psubs.each { |s| method_missing(:psubscribe, s) }
+        emit(:connected)
         succeed
 
         if @reconnecting
@@ -59,27 +56,7 @@ module EventMachine::Hiredis
           deferred = @defs.shift
           deferred.fail(reply) if deferred
         else
-          if reply && PUBSUB_MESSAGES.include?(reply[0]) # reply can be nil
-            kind, subscription, d1, d2 = *reply
-
-            case kind.to_sym
-            when :message
-              emit(:message, subscription, d1)
-            when :pmessage
-              emit(:pmessage, subscription, d1, d2)
-            end
-          else
-            if @defs.empty?
-              if @monitoring
-                emit(:monitor, reply)
-              else
-                raise "Replies out of sync: #{reply.inspect}"
-              end
-            else
-              deferred = @defs.shift
-              deferred.succeed(reply) if deferred
-            end
-          end
+          handle_reply(reply)
         end
       end
 
@@ -108,29 +85,24 @@ module EventMachine::Hiredis
     #
     def pubsub
       @pubsub ||= begin
-        @pubsub_client = Client.new(@host, @port, @password, @db).connect
-        Pubsub.new(@pubsub_client)
+        PubsubClient.new(@host, @port, @password, @db).connect
       end
     end
 
-    def subscribe(channel)
-      @subs << channel
-      method_missing(:subscribe, channel)
+    def subscribe(*channels)
+      raise "Use pubsub client"
     end
 
-    def unsubscribe(channel)
-      @subs.delete(channel)
-      method_missing(:unsubscribe, channel)
+    def unsubscribe(*channels)
+      raise "Use pubsub client"
     end
 
     def psubscribe(channel)
-      @psubs << channel
-      method_missing(:psubscribe, channel)
+      raise "Use pubsub client"
     end
 
     def punsubscribe(channel)
-      @psubs.delete(channel)
-      method_missing(:punsubscribe, channel)
+      raise "Use pubsub client"
     end
 
     def select(db, &blk)
@@ -189,6 +161,19 @@ module EventMachine::Hiredis
     def reconnect
       EventMachine::Hiredis.logger.debug("Trying to reconnect to Redis")
       @connection.reconnect @host, @port
+    end
+
+    def handle_reply(reply)
+      if @defs.empty?
+        if @monitoring
+          emit(:monitor, reply)
+        else
+          raise "Replies out of sync: #{reply.inspect}"
+        end
+      else
+        deferred = @defs.shift
+        deferred.succeed(reply) if deferred
+      end
     end
   end
 end
