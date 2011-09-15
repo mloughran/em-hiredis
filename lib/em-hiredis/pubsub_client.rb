@@ -12,7 +12,7 @@ module EventMachine::Hiredis
       
       # Resubsubscribe to channels on reconnect
       # TODO: Send all subscriptions using one call to redis
-      on(:connected) {
+      on(:reconnected) {
         @subs.each { |s| method_missing(:subscribe, s) }
         @psubs.each { |s| method_missing(:psubscribe, s) }
       }
