@@ -56,6 +56,23 @@ describe EventMachine::Hiredis::PubsubClient do
       end
     end
 
+    it "should unsubscribe from redis on last proc unsubscription" do
+      connect do |redis|
+        proc = Proc.new { |message| }
+        redis.pubsub.subscribe("channel", proc).callback { |subs_count|
+          subs_count.should == 1
+          redis.pubsub.unsubscribe_proc("channel", proc).callback {
+            # Slightly awkward way to check that unsubscribe happened:
+            redis.pubsub.subscribe('channel2').callback { |count|
+              # If count is 1 this implies that channel unsubscribed
+              count.should == 1
+              done
+            }
+          }
+        }
+      end
+    end
+
     it "should allow unsubscribing from redis channel, including all callbacks, and return deferrable for redis unsubscribe" do
       connect do |redis|
         # Raw pubsub event

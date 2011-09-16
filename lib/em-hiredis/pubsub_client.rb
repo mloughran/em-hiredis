@@ -50,18 +50,26 @@ module EventMachine::Hiredis
     # Unsubscribe a given callback from a channel. Will unsubscribe from redis
     # if there are no remaining subscriptions on this channel
     #
-    # @return Boolean representing whether or not the given callback existed
+    # @return [Deferrable] Succeeds when the unsubscribe has completed or
+    #   fails if callback could not be found. Note that success may happen
+    #   immediately in the case that there are other callbacks for the same
+    #   channel (and therefore no unsubscription from redis is necessary)
     #
     def unsubscribe_proc(channel, proc)
+      df = EM::DefaultDeferrable.new
       if @sub_callbacks[channel].delete(proc)
-        if @sub_callbacks[channel].empty?
-          @sub_callbacks.delete[channel]
-          unsubscribe(channel)
+        if @sub_callbacks[channel].any?
+          # Succeed deferrable immediately - no need to unsubscribe
+          df.succeed
+        else
+          unsubscribe(channel).callback { |count|
+            df.succeed
+          }
         end
-        return true
       else
-        return false
+        df.fail
       end
+      return df
     end
 
     def psubscribe(channel)

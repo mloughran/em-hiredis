@@ -23,7 +23,7 @@ EM.run {
   }
   
   # Passing such an object is useful if you want to unsubscribe
-  p [:unsubscribed?, redis.pubsub.unsubscribe_proc('foo', callback)]
+  redis.pubsub.unsubscribe_proc('foo', callback)
   
   # Or if you want to call a method on a certain object
   class Thing
