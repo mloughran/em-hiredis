@@ -6,11 +6,11 @@ describe EventMachine::Hiredis::PubsubClient do
       connect do |redis|
         df = redis.pubsub.subscribe("channel") { }
         df.should be_kind_of(EventMachine::DefaultDeferrable)
-        df.callback { |response|
+        df.callback { |subscription_count|
           # Subscribe response from redis - indicates that subscription has
           # succeeded and that the current connection has a single
           # subscription
-          response.should == ["subscribe", "channel", 1]
+          subscription_count.should == 1
           done
         }
       end

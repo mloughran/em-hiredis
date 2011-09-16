@@ -100,6 +100,7 @@ module EventMachine::Hiredis
 
     def handle_reply(reply)
       if reply && PUBSUB_MESSAGES.include?(reply[0]) # reply can be nil
+        # Note: pmessage is the only message with 4 arguments
         kind, subscription, d1, d2 = *reply
 
         case kind.to_sym
@@ -115,7 +116,7 @@ module EventMachine::Hiredis
         else
           if @pubsub_defs[subscription].any?
             df = @pubsub_defs[subscription].shift
-            df.succeed(reply)
+            df.succeed(d1)
             # Cleanup empty arrays
             if @pubsub_defs[subscription].empty?
               @pubsub_defs.delete(subscription)
