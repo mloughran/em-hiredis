@@ -41,9 +41,40 @@ describe EventMachine::Hiredis::PubsubClient do
   end
 
   describe "unsubscribing" do
-    it "should allow unsubscribing a single callback without unsubscribing from redis"
+    it "should allow unsubscribing a single callback without unsubscribing from redis" do
+      connect do |redis|
+        proc1 = Proc.new { |message| fail }
+        proc2 = Proc.new { |message|
+          message.should == 'hello'
+          done
+        }
+        redis.pubsub.subscribe("channel", proc1)
+        redis.pubsub.subscribe("channel", proc2).callback {
+          redis.pubsub.unsubscribe_proc("channel", proc1)
+          redis.publish("channel", "hello")
+        }
+      end
+    end
 
-    it "should allow unsubscribing all callbacks"
+    it "should allow unsubscribing from redis channel, including all callbacks, and return deferrable for redis unsubscribe" do
+      connect do |redis|
+        # Raw pubsub event
+        redis.pubsub.on('message') { |channel, message| fail }
+        # Block subscription
+        redis.pubsub.subscribe("channel") { |m| fail } # block
+        # Proc example
+        df = redis.pubsub.subscribe("channel", Proc.new { |m| fail })
+
+        df.callback {
+          redis.pubsub.unsubscribe("channel").callback { |remaining_subs|
+            remaining_subs.should == 0
+            redis.publish("channel", "hello") {
+              done
+            }
+          }
+        }
+      end
+    end
   end
 
   it "should expose raw pubsub events from redis"
