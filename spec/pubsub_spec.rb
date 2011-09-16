@@ -77,7 +77,62 @@ describe EventMachine::Hiredis::PubsubClient do
     end
   end
 
-  it "should expose raw pubsub events from redis"
+  it "should expose raw pubsub events from redis" do
+    channel = "channel"
+    callback_count = 0
+    connect do |redis|
+      redis.pubsub.on(:subscribe) { |channel, subscription_count|
+        # 2. Get subscribe callback
+        callback_count += 1
+        channel.should == channel
+        subscription_count.should == 1
 
-  it "should resubscribe to all channels on reconnect"
+        # 3. Publish on channel
+        redis.publish(channel, 'foo')
+      }
+
+      redis.pubsub.on(:message) { |channel, message|
+        # 4. Get message callback
+        callback_count += 1
+        channel.should == channel
+        message.should == 'foo'
+
+        callback_count.should == 2
+        done
+      }
+
+      # 1. Subscribe to channel
+      redis.pubsub.subscribe(channel)
+    end
+  end
+
+  it "should resubscribe to all channels on reconnect" do
+    callback_count = 0
+    connect do |redis|
+      # 1. Subscribe to channels
+      redis.pubsub.subscribe('channel1') {
+        callback_count += 1
+      }
+      redis.pubsub.subscribe('channel2') {
+        callback_count += 1
+        EM.next_tick {
+          # 4. Success if both messages have been received
+          callback_count.should == 2
+          done
+        }
+      }.callback { |subscription_count|
+        subscription_count.should == 2
+        # 2. Subscriptions complete. Now force disconnect
+        redis.pubsub.instance_variable_get(:@connection).close_connection
+
+        EM.add_timer(0.1) {
+          # 3. After giving time to reconnect publish to both channels
+          redis.publish('channel1', 'foo')
+          redis.publish('channel2', 'bar')
+        }
+
+      }
+
+    end
+  end
 end
