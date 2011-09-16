@@ -10,6 +10,7 @@ module EventMachine::Hiredis
 
     def connect
       @sub_callbacks = Hash.new { |h, k| h[k] = [] }
+      @psub_callbacks = Hash.new { |h, k| h[k] = [] }
       
       # Resubsubscribe to channels on reconnect
       on(:reconnected) {
@@ -62,7 +63,7 @@ module EventMachine::Hiredis
           # Succeed deferrable immediately - no need to unsubscribe
           df.succeed
         else
-          unsubscribe(channel).callback { |count|
+          unsubscribe(channel).callback { |_|
             df.succeed
           }
         end
@@ -72,16 +73,57 @@ module EventMachine::Hiredis
       return df
     end
 
-    def psubscribe(channel)
-      @psubs << channel
-      raw_send_command(:punsubscribe, channel)
-      return pubsub_deferrable(channel)
+    # Pattern subscribe to a pubsub channel
+    #
+    # If an optional proc / block is provided then it will be called (with the
+    # channel name and message) when a message is received on a matching
+    # channel
+    #
+    # @return [Deferrable] Redis psubscribe call
+    #
+    def psubscribe(pattern, proc = nil, &block)
+      if cb = proc || block
+        @psub_callbacks[pattern] << cb
+      end
+      @psubs << pattern
+      raw_send_command(:psubscribe, pattern)
+      return pubsub_deferrable(pattern)
     end
 
-    def punsubscribe(channel)
-      @psubs.delete(channel)
-      raw_send_command(:punsubscribe, channel)
-      return pubsub_deferrable(channel)
+    # Pattern unsubscribe all callbacks for a given pattern
+    #
+    # @return [Deferrable] Redis punsubscribe call
+    #
+    def punsubscribe(pattern)
+      @psub_callbacks.delete(pattern)
+      @psubs.delete(pattern)
+      raw_send_command(:punsubscribe, pattern)
+      return pubsub_deferrable(pattern)
+    end
+
+    # Unsubscribe a given callback from a pattern. Will unsubscribe from redis
+    # if there are no remaining subscriptions on this pattern
+    #
+    # @return [Deferrable] Succeeds when the punsubscribe has completed or
+    #   fails if callback could not be found. Note that success may happen
+    #   immediately in the case that there are other callbacks for the same
+    #   pattern (and therefore no punsubscription from redis is necessary)
+    #
+    def punsubscribe_proc(pattern, proc)
+      df = EM::DefaultDeferrable.new
+      if @psub_callbacks[pattern].delete(proc)
+        if @psub_callbacks[pattern].any?
+          # Succeed deferrable immediately - no need to punsubscribe
+          df.succeed
+        else
+          punsubscribe(pattern).callback { |_|
+            df.succeed
+          }
+        end
+      else
+        df.fail
+      end
+      return df
     end
     
     private
@@ -119,6 +161,9 @@ module EventMachine::Hiredis
           # Arguments are channel, message payload
           emit(:message, subscription, d1)
         when :pmessage
+          if @psub_callbacks.has_key?(subscription)
+            @psub_callbacks[subscription].each { |cb| cb.call(d1, d2) }
+          end
           # Arguments are original pattern, channel, message payload
           emit(:pmessage, subscription, d1, d2)
         else
