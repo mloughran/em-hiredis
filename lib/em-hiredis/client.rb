@@ -22,7 +22,7 @@ module EventMachine::Hiredis
 
       @connection.on(:closed) do
         if @connected
-          @defs.each { |d| d.fail("Redis disconnected") }
+          @defs.each { |d| d.fail(Errno::ECONNRESET) }
           @defs = []
           @deferred_status = nil
           @connected = false
