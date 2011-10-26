@@ -14,6 +14,9 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'hiredis', '~> 0.3.0'
 
+  s.add_development_dependency 'em-spec', '~> 0.2.5'
+  s.add_development_dependency 'rspec', '~> 2.6.0'
+
   s.rubyforge_project = "em-hiredis"
 
   s.files         = `git ls-files`.split("\n")
