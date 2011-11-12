@@ -164,8 +164,8 @@ module EventMachine::Hiredis
       deferred.callback { |result| yield(result) } if block_given?
 
       if @connected
-        @connection.send_command(sym, *args)
         @defs.push(deferred)
+        @connection.send_command(sym, *args)
       else
         callback do
           @connection.send_command(sym, *args)
