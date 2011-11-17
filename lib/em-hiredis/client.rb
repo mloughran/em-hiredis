@@ -40,8 +40,8 @@ module EventMachine::Hiredis
       @connection.on(:connected) do
         @connected = true
 
-        select(@db) if @db
         auth(@password) if @password
+        select(@db) if @db
 
         @subs.each { |s| method_missing(:subscribe, s) }
         @psubs.each { |s| method_missing(:psubscribe, s) }
@@ -149,7 +149,7 @@ module EventMachine::Hiredis
       end
       method_missing(:info, &hash_processor)
     end
-    
+
     def close_connection
       @closing_connection = true
       @connection.close_connection_after_writing
