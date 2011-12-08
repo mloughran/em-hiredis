@@ -75,10 +75,10 @@ Hacking on em-hiredis is pretty simple, make sure you have Bundler installed:
 
 To run all the tests:
 
-    rake
+    bundle exec rake
 
 To run an individual test:
 
     bundle exec rspec spec/redis_commands_spec.rb
 
-Much thanks to the em-redis gem for getting this gem bootstrapped with some tests.
+Many thanks to the em-redis gem for getting this gem bootstrapped with some tests.
