@@ -73,9 +73,10 @@ Hacking on em-hiredis is pretty simple, make sure you have Bundler installed:
     gem install bundler
     bundle
 
-To run all the tests (WARNING: The tests call flushall on db 9):
+In order to run the tests you need to have a local redis server running on port 6379. Run all the tests:
 
-    bundle exec rake
+    # WARNING: The tests call flushall on db 9 - this clears all keys!
+    bundle exec rake 
 
 To run an individual test:
 
