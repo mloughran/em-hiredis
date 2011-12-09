@@ -66,7 +66,7 @@ module EventMachine::Hiredis
         else
           unless @closing_connection
             @reconnect_failed_count += 1
-            @reconnect_timer = EM.add_timer(1) {
+            @reconnect_timer = EM.add_timer(EM::Hiredis.reconnect_timeout) {
               @reconnect_timer = nil
               reconnect
             }

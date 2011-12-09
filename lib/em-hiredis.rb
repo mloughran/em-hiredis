@@ -2,6 +2,11 @@ require 'eventmachine'
 
 module EventMachine
   module Hiredis
+    class << self
+      attr_accessor :reconnect_timeout
+    end
+    self.reconnect_timeout = 0.5
+
     def self.setup(uri = nil)
       uri = uri || ENV["REDIS_URL"] || "redis://127.0.0.1:6379/0"
       client = Client.new
