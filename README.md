@@ -73,7 +73,7 @@ Hacking on em-hiredis is pretty simple, make sure you have Bundler installed:
     gem install bundler
     bundle
 
-To run all the tests:
+To run all the tests (WARNING: The tests call flushall on db 9):
 
     bundle exec rake
 
