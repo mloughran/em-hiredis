@@ -23,6 +23,7 @@ module EventMachine::Hiredis
 
       @closing_connection = false
       @reconnect_failed_count = 0
+      @reconnect_timer = nil
       @failed = false
 
       self.errback {
@@ -58,7 +59,6 @@ module EventMachine::Hiredis
           @deferred_status = nil
           @connected = false
           unless @closing_connection
-            @reconnecting = true
             reconnect
           end
           emit(:disconnected)
@@ -66,7 +66,10 @@ module EventMachine::Hiredis
         else
           unless @closing_connection
             @reconnect_failed_count += 1
-            EM.add_timer(1) { reconnect }
+            @reconnect_timer = EM.add_timer(1) {
+              @reconnect_timer = nil
+              reconnect
+            }
             emit(:reconnect_failed, @reconnect_failed_count)
             EM::Hiredis.logger.info("#{@connection.to_s} reconnect failed")
 
@@ -142,8 +145,14 @@ module EventMachine::Hiredis
     end
 
     def close_connection
+      EM.cancel_timer(@reconnect_timer) if @reconnect_timer
       @closing_connection = true
       @connection.close_connection_after_writing
+    end
+
+    def reconnect_connection
+      EM.cancel_timer(@reconnect_timer) if @reconnect_timer
+      reconnect
     end
 
     private
@@ -167,6 +176,7 @@ module EventMachine::Hiredis
 
     def reconnect
       EventMachine::Hiredis.logger.debug("Trying to reconnect to Redis")
+      @reconnecting = true
       @connection.reconnect @host, @port
     end
 

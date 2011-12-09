@@ -66,4 +66,16 @@ describe EM::Hiredis::BaseClient do
       }
     end
   end
+
+  it "should allow connection to be reconnected" do
+    connect do |redis|
+      redis.on(:reconnected) {
+        done
+      }
+      # Wait for first connection to complete
+      redis.callback {
+        redis.reconnect_connection
+      }
+    end
+  end
 end
