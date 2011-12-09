@@ -1,4 +1,13 @@
 module EventMachine::Hiredis
+  # Emits the following events
+  #
+  # * :connected - on successful connection or reconnection
+  # * :reconnected - on successful reconnection
+  # * :disconnected - no longer connected, when previously in connected state
+  # * :reconnect_failed(failure_number) - a reconnect attempt failed
+  #     This event is passed number of failures so far (1,2,3...)
+  # * :monitor
+  #
   class BaseClient
     include EventEmitter
     include EM::Deferrable
@@ -9,6 +18,7 @@ module EventMachine::Hiredis
       @host, @port, @password, @db = host, port, password, db
       @defs = []
       @closing_connection = false
+      @reconnect_failed_count = 0
     end
 
     def connect
@@ -24,15 +34,19 @@ module EventMachine::Hiredis
             @reconnecting = true
             reconnect
           end
+          emit(:disconnected)
         else
           unless @closing_connection
+            @reconnect_failed_count += 1
             EM.add_timer(1) { reconnect }
+            emit(:reconnect_failed, @reconnect_failed_count)
           end
         end
       end
 
       @connection.on(:connected) do
         @connected = true
+        @reconnect_failed_count = 0
 
         select(@db) if @db
         auth(@password) if @password
