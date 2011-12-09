@@ -150,6 +150,8 @@ module EventMachine::Hiredis
       if @connected
         @connection.send_command(sym, *args)
         @defs.push(deferred)
+      elsif @failed
+        deferred.fail("Redis connection in failed state")
       else
         callback do
           @connection.send_command(sym, *args)

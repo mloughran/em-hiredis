@@ -35,4 +35,14 @@ describe EM::Hiredis::BaseClient do
       }
     end
   end
+
+  it "should fail commands immediately when in failed state" do
+    connect("redis://localhost:9999/") do |redis|
+      redis.fail
+      redis.get('foo').errback { |reason|
+        reason.should == 'Redis connection in failed state'
+        done
+      }
+    end
+  end
 end
