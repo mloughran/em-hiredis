@@ -632,7 +632,7 @@ describe EventMachine::Hiredis, "commands" do
   it "SELECTs database" do
     connect do |redis|
       redis.set("foo", "bar") do |set_response|
-        redis.select("9") do |select_response|
+        redis.select("10") do |select_response|
           redis.get("foo") do |get_response|
             get_response.should == nil; done
           end

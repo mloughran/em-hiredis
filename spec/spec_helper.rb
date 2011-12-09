@@ -12,3 +12,6 @@ RSpec.configure do |config|
   config.include EventMachine::SpecHelper
   config.include RedisMock::Helper
 end
+
+# This speeds the tests up a bit
+EM::Hiredis.reconnect_timeout = 0.01

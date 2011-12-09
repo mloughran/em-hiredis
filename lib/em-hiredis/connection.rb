@@ -9,8 +9,13 @@ module EventMachine::Hiredis
       @host, @port = host, port
     end
 
+    def reconnect(host, port)
+      super
+      @host, @port = host, port
+    end
+
     def connection_completed
-      EventMachine::Hiredis.logger.info("Connected to Redis")
+      EM::Hiredis.logger.debug("#{to_s}: connection open")
       @reader = ::Hiredis::Reader.new
       emit(:connected)
     end
@@ -23,12 +28,16 @@ module EventMachine::Hiredis
     end
 
     def unbind
-      EventMachine::Hiredis.logger.info("Disconnected from Redis")
+      EM::Hiredis.logger.debug("#{to_s}: connection unbound")
       emit(:closed)
     end
 
     def send_command(sym, *args)
       send_data(command(sym, *args))
+    end
+
+    def to_s
+      "Redis connection #{@host}:#{@port}"
     end
 
     protected
