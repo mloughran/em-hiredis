@@ -9,6 +9,11 @@ module EventMachine::Hiredis
       @host, @port = host, port
     end
 
+    def reconnect(host, port)
+      super
+      @host, @port = host, port
+    end
+
     def connection_completed
       EM::Hiredis.logger.debug("#{to_s}: connection open")
       @reader = ::Hiredis::Reader.new

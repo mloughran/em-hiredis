@@ -175,9 +175,9 @@ module EventMachine::Hiredis
     end
 
     def reconnect
-      EventMachine::Hiredis.logger.debug("Trying to reconnect to Redis")
       @reconnecting = true
       @connection.reconnect @host, @port
+      EM::Hiredis.logger.info("#{@connection.to_s} reconnecting")
     end
 
     def handle_reply(reply)
