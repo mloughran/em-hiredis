@@ -21,4 +21,18 @@ describe EM::Hiredis::BaseClient do
       redis.close_connection
     end
   end
+
+  it "should fail the client deferrable after 4 unsuccessful attempts" do
+    connect("redis://localhost:9999/") do |redis|
+      events = []
+      redis.on(:reconnect_failed) { |count|
+        events << count
+      }
+      redis.errback { |reason|
+        reason.should == 'Could not connect after 4 attempts'
+        events.should == [1,2,3,4]
+        done
+      }
+    end
+  end
 end

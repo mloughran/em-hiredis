@@ -19,6 +19,11 @@ module EventMachine::Hiredis
       @defs = []
       @closing_connection = false
       @reconnect_failed_count = 0
+      @failed = false
+
+      self.errback {
+        @failed = true
+      }
     end
 
     def connect
@@ -40,6 +45,10 @@ module EventMachine::Hiredis
             @reconnect_failed_count += 1
             EM.add_timer(1) { reconnect }
             emit(:reconnect_failed, @reconnect_failed_count)
+
+            if @reconnect_failed_count >= 4
+              self.fail("Could not connect after 4 attempts")
+            end
           end
         end
       end
@@ -47,6 +56,7 @@ module EventMachine::Hiredis
       @connection.on(:connected) do
         @connected = true
         @reconnect_failed_count = 0
+        @failed = false
 
         select(@db) if @db
         auth(@password) if @password
