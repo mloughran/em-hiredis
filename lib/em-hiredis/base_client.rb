@@ -62,11 +62,13 @@ module EventMachine::Hiredis
             reconnect
           end
           emit(:disconnected)
+          EM::Hiredis.logger.info("#{@connection.to_s} disconnected")
         else
           unless @closing_connection
             @reconnect_failed_count += 1
             EM.add_timer(1) { reconnect }
             emit(:reconnect_failed, @reconnect_failed_count)
+            EM::Hiredis.logger.info("#{@connection.to_s} reconnect failed")
 
             if @reconnect_failed_count >= 4
               self.fail("Could not connect after 4 attempts")
@@ -90,6 +92,7 @@ module EventMachine::Hiredis
         @command_queue = []
 
         emit(:connected)
+        EM::Hiredis.logger.info("#{@connection.to_s} connected")
         succeed
 
         if @reconnecting
