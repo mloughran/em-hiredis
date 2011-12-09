@@ -131,7 +131,6 @@ module EventMachine::Hiredis
     def close_connection
       @closing_connection = true
       @connection.close_connection_after_writing
-      @defs.each
     end
 
     private
