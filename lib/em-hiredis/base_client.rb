@@ -17,12 +17,18 @@ module EventMachine::Hiredis
     def initialize(host, port, password = nil, db = nil)
       @host, @port, @password, @db = host, port, password, db
       @defs = []
+      @command_queue = []
+
       @closing_connection = false
       @reconnect_failed_count = 0
       @failed = false
 
       self.errback {
         @failed = true
+        @command_queue.each do |df, _, _|
+          df.fail("Redis connection in failed state")
+        end
+        @command_queue = []
       }
     end
 
@@ -60,6 +66,12 @@ module EventMachine::Hiredis
 
         select(@db) if @db
         auth(@password) if @password
+
+        @command_queue.each do |df, command, args|
+          @connection.send_command(command, *args)
+          @defs.push(df)
+        end
+        @command_queue = []
 
         emit(:connected)
         succeed
@@ -153,10 +165,7 @@ module EventMachine::Hiredis
       elsif @failed
         deferred.fail("Redis connection in failed state")
       else
-        callback do
-          @connection.send_command(sym, *args)
-          @defs.push(deferred)
-        end
+        @command_queue << [deferred, sym, args]
       end
 
       deferred
