@@ -55,4 +55,15 @@ describe EM::Hiredis::BaseClient do
       redis.fail
     end
   end
+
+  it "should allow reconfiguring the client at runtime" do
+    connect("redis://localhost:9999/") do |redis|
+      redis.on(:reconnect_failed) {
+        redis.configure("redis://localhost:6379/9")
+        redis.info {
+          done
+        }
+      }
+    end
+  end
 end

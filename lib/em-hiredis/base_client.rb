@@ -1,3 +1,5 @@
+require 'uri'
+
 module EventMachine::Hiredis
   # Emits the following events
   #
@@ -14,7 +16,7 @@ module EventMachine::Hiredis
 
     attr_reader :host, :port, :password, :db
 
-    def initialize(host, port, password = nil, db = nil)
+    def initialize(host='localhost', port='6379', password=nil, db=nil)
       @host, @port, @password, @db = host, port, password, db
       @defs = []
       @command_queue = []
@@ -30,6 +32,20 @@ module EventMachine::Hiredis
         end
         @command_queue = []
       }
+    end
+
+    # Configure the redis connection to use
+    #
+    # In usual operation, the uri should be passed to initialize. This method
+    # is useful for example when failing over to a slave connection at runtime
+    #
+    def configure(uri_string)
+      uri = URI(uri_string)
+      @host = uri.host
+      @port = uri.port
+      @password = uri.password
+      path = uri.path[1..-1]
+      @db = path.empty? ? nil : path
     end
 
     def connect

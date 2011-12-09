@@ -1,11 +1,12 @@
 require 'eventmachine'
-require 'uri'
 
 module EventMachine
   module Hiredis
     def self.setup(uri = nil)
-      url = URI(uri || ENV["REDIS_URL"] || "redis://127.0.0.1:6379/0")
-      Client.new(url.host, url.port, url.password, url.path[1..-1])
+      uri = uri || ENV["REDIS_URL"] || "redis://127.0.0.1:6379/0"
+      client = Client.new
+      client.configure(uri)
+      client
     end
 
     def self.connect(uri = nil)
