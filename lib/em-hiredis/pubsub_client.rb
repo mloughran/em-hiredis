@@ -2,7 +2,7 @@ module EventMachine::Hiredis
   class PubsubClient < BaseClient
     PUBSUB_MESSAGES = %w{message pmessage subscribe unsubscribe psubscribe punsubscribe}.freeze
 
-    def initialize(host, port, password = nil, db = nil)
+    def initialize(host='localhost', port='6379', password=nil, db=nil)
       @subs, @psubs = [], []
       @pubsub_defs = Hash.new { |h,k| h[k] = [] }
       super
