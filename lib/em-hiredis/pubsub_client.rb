@@ -1,5 +1,5 @@
 module EventMachine::Hiredis
-  class PubsubClient < Client
+  class PubsubClient < BaseClient
     PUBSUB_MESSAGES = %w{message pmessage subscribe unsubscribe psubscribe punsubscribe}.freeze
 
     def initialize(host, port, password = nil, db = nil)
