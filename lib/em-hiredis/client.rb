@@ -9,16 +9,18 @@ module EventMachine::Hiredis
       method_missing(:monitor, &blk)
     end
 
-    def info(&blk)
-      hash_processor = lambda do |response|
+    def info
+      df = method_missing(:info)
+      df.callback { |response|
         info = {}
         response.each_line do |line|
           key, value = line.split(":", 2)
           info[key.to_sym] = value.chomp
         end
-        blk.call(info)
-      end
-      method_missing(:info, &hash_processor)
+        df.succeed(info)
+      }
+      df.callback { |info| yield info } if block_given?
+      df
     end
 
     # Gives access to a richer interface for pubsub subscriptions on a
