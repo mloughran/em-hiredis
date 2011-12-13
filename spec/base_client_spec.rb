@@ -1,6 +1,19 @@
 require 'spec_helper'
 
 describe EM::Hiredis::BaseClient do
+  it "should be able to connect to redis (required for all tests!)" do
+    em {
+      redis = EM::Hiredis.connect
+      redis.callback {
+        done
+      }
+      redis.errback {
+        puts "CHECK THAT THE REDIS SERVER IS RUNNING ON PORT 6379"
+        fail
+      }
+    }
+  end
+
   it "should emit an event on reconnect failure, with the retry count" do
     # Assumes there is no redis server on 9999
     connect("redis://localhost:9999/") do |redis|
