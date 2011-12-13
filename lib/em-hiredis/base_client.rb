@@ -26,7 +26,7 @@ module EventMachine::Hiredis
       @reconnect_timer = nil
       @failed = false
 
-      self.errback {
+      self.on(:failed) {
         @failed = true
         @command_queue.each do |df, _, _|
           df.fail("Redis connection in failed state")
@@ -74,6 +74,7 @@ module EventMachine::Hiredis
             EM::Hiredis.logger.info("#{@connection.to_s} reconnect failed")
 
             if @reconnect_failed_count >= 4
+              emit(:failed)
               self.fail("Could not connect after 4 attempts")
             end
           end
