@@ -41,8 +41,9 @@ describe EM::Hiredis::BaseClient do
       redis.on(:reconnect_failed) { |count|
         events << count
       }
-      redis.errback { |reason|
-        reason.should == 'Could not connect after 4 attempts'
+      redis.errback { |error|
+        error.class.should == EM::Hiredis::Error
+        error.message.should == 'Could not connect after 4 attempts'
         events.should == [1,2,3,4]
         done
       }
@@ -52,8 +53,9 @@ describe EM::Hiredis::BaseClient do
   it "should fail commands immediately when in failed state" do
     connect(1, "redis://localhost:9999/") do |redis|
       redis.fail
-      redis.get('foo').errback { |reason|
-        reason.should == 'Redis connection in failed state'
+      redis.get('foo').errback { |error|
+        error.class.should == EM::Hiredis::Error
+        error.message.should == 'Redis connection in failed state'
         done
       }
     end
@@ -61,8 +63,9 @@ describe EM::Hiredis::BaseClient do
 
   it "should fail queued commands when entering failed state" do
     connect(1, "redis://localhost:9999/") do |redis|
-      redis.get('foo').errback { |reason|
-        reason.should == 'Redis connection in failed state'
+      redis.get('foo').errback { |error|
+        error.class.should == EM::Hiredis::Error
+        error.message.should == 'Redis connection in failed state'
         done
       }
       redis.fail
@@ -88,6 +91,24 @@ describe EM::Hiredis::BaseClient do
       # Wait for first connection to complete
       redis.callback {
         redis.reconnect_connection
+      }
+    end
+  end
+
+  it "should wrap error responses returned by redis" do
+    connect do |redis|
+      redis.sadd('foo', 'bar') {
+        df = redis.get('foo')
+        df.callback {
+          fail "Should have received error response from redis"
+        }
+        df.errback { |e|
+          e.class.should == EM::Hiredis::Error
+          e.message.should == 'Error reply from redis'
+          # This is the wrapped error from redis:
+          e.redis_error.message.should == 'ERR Operation against a key holding the wrong kind of value'
+          done
+        }
       }
     end
   end

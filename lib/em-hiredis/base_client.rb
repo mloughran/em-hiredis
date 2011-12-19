@@ -29,7 +29,7 @@ module EventMachine::Hiredis
       self.on(:failed) {
         @failed = true
         @command_queue.each do |df, _, _|
-          df.fail("Redis connection in failed state")
+          df.fail(Error.new("Redis connection in failed state"))
         end
         @command_queue = []
       }
@@ -54,7 +54,7 @@ module EventMachine::Hiredis
 
       @connection.on(:closed) do
         if @connected
-          @defs.each { |d| d.fail("Redis disconnected") }
+          @defs.each { |d| d.fail(Error.new("Redis disconnected")) }
           @defs = []
           @deferred_status = nil
           @connected = false
@@ -75,7 +75,7 @@ module EventMachine::Hiredis
 
             if @reconnect_failed_count >= 4
               emit(:failed)
-              self.fail("Could not connect after 4 attempts")
+              self.fail(Error.new("Could not connect after 4 attempts"))
             end
           end
         end
@@ -109,7 +109,9 @@ module EventMachine::Hiredis
         if RuntimeError === reply
           raise "Replies out of sync: #{reply.inspect}" if @defs.empty?
           deferred = @defs.shift
-          deferred.fail(reply) if deferred
+          error = Error.new("Error reply from redis")
+          error.redis_error = reply
+          deferred.fail(error) if deferred
         else
           handle_reply(reply)
         end
@@ -167,7 +169,7 @@ module EventMachine::Hiredis
         @connection.send_command(sym, *args)
         @defs.push(deferred)
       elsif @failed
-        deferred.fail("Redis connection in failed state")
+        deferred.fail(Error.new("Redis connection in failed state"))
       else
         @command_queue << [deferred, sym, args]
       end

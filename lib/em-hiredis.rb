@@ -2,6 +2,12 @@ require 'eventmachine'
 
 module EventMachine
   module Hiredis
+    class Error < RuntimeError
+      # In the case of error responses from Redis, the RuntimeError returned
+      # by ::Hiredis will be wrapped
+      attr_accessor :redis_error
+    end
+
     class << self
       attr_accessor :reconnect_timeout
     end
