@@ -494,7 +494,7 @@ end
 
 describe EventMachine::Hiredis, "when reconnecting" do
   it "select previously selected dataset" do
-    connect do |redis|
+    connect(3) do |redis|
       #simulate disconnect
       redis.set('foo', 'a') { redis.close_connection_after_writing }
 

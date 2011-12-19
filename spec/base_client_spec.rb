@@ -16,7 +16,7 @@ describe EM::Hiredis::BaseClient do
 
   it "should emit an event on reconnect failure, with the retry count" do
     # Assumes there is no redis server on 9999
-    connect("redis://localhost:9999/") do |redis|
+    connect(1, "redis://localhost:9999/") do |redis|
       expected = 1
       redis.on(:reconnect_failed) { |count|
         count.should == expected
@@ -36,7 +36,7 @@ describe EM::Hiredis::BaseClient do
   end
 
   it "should fail the client deferrable after 4 unsuccessful attempts" do
-    connect("redis://localhost:9999/") do |redis|
+    connect(1, "redis://localhost:9999/") do |redis|
       events = []
       redis.on(:reconnect_failed) { |count|
         events << count
@@ -50,7 +50,7 @@ describe EM::Hiredis::BaseClient do
   end
 
   it "should fail commands immediately when in failed state" do
-    connect("redis://localhost:9999/") do |redis|
+    connect(1, "redis://localhost:9999/") do |redis|
       redis.fail
       redis.get('foo').errback { |reason|
         reason.should == 'Redis connection in failed state'
@@ -60,7 +60,7 @@ describe EM::Hiredis::BaseClient do
   end
 
   it "should fail queued commands when entering failed state" do
-    connect("redis://localhost:9999/") do |redis|
+    connect(1, "redis://localhost:9999/") do |redis|
       redis.get('foo').errback { |reason|
         reason.should == 'Redis connection in failed state'
         done
@@ -70,7 +70,7 @@ describe EM::Hiredis::BaseClient do
   end
 
   it "should allow reconfiguring the client at runtime" do
-    connect("redis://localhost:9999/") do |redis|
+    connect(1, "redis://localhost:9999/") do |redis|
       redis.on(:reconnect_failed) {
         redis.configure("redis://localhost:6379/9")
         redis.info {
