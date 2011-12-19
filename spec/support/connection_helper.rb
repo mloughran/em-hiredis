@@ -4,7 +4,7 @@ module ConnectionHelper
   def connect(timeout = 1, url = "redis://localhost:6379/9", &blk)
     em(timeout) do
       redis = EventMachine::Hiredis.connect(url)
-      redis.flushall
+      redis.flushdb
       blk.call(redis)
     end
   end
