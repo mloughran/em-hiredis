@@ -60,10 +60,12 @@ module EM::Hiredis
               df.succeed(expiry)
             else
               # Another client got there first
+              EM::Hiredis.logger.debug "Lock: failed to acquire #{@key}"
               df.fail(expiry_2)
             end
           }
         else
+          EM::Hiredis.logger.debug "Lock: failed to acquire #{@key}"
           df.fail(expiry_1)
         end
       }
