@@ -77,6 +77,7 @@ module EM::Hiredis
       EM::Hiredis.logger.debug "Lock: aquired #{@key}"
       @locked = true
       @expiry = expiry
+      EM.cancel_timer(@expire_timer) if @expire_timer
       @expire_timer = EM.add_timer(@timeout) {
         EM::Hiredis.logger.debug "Lock: #{@key} will expire in 1s"
         @onexpire.call if @onexpire
