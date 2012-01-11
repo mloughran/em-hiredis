@@ -1,8 +1,6 @@
 module EM::Hiredis
   # Distributed lock built on redis
   class Lock
-    include EM::Deferrable
-
     def onexpire(&blk); @onexpire = blk; end
 
     def initialize(redis, key, timeout)
@@ -12,15 +10,22 @@ module EM::Hiredis
     end
 
     # Aquire the lock
+    #
+    # It is ok to call aquire again before the lock expires, which will attempt to extend the existing lock.
+    #
+    # Returns a deferrable which either succeeds if the lock can be aquired, or fails if it cannot. In both cases the expiry timestamp is returned (for the new lock or for the expired one respectively)
     def aquire
+      df = EM::DefaultDeferrable.new
       expiry = new_expiry
       @redis.setnx(@key, expiry) { |setnx|
         if setnx == 1
           lock_aquired(expiry)
+          df.succeed(expiry)
         else
-          attempt_to_aquire_existing_lock
+          attempt_to_aquire_existing_lock(df)
         end
       }
+      return df
     end
 
     # Release the lock
@@ -42,7 +47,7 @@ module EM::Hiredis
 
     private
 
-    def attempt_to_aquire_existing_lock
+    def attempt_to_aquire_existing_lock(df)
       @redis.get(@key) { |expiry_1|
         expiry_1 = expiry_1.to_i
         if expiry_1 == @expiry || expiry_1 < Time.now.to_i
@@ -52,13 +57,14 @@ module EM::Hiredis
             expiry_2 = expiry_2.to_i
             if expiry_2 == @expiry || expiry_2 < Time.now.to_i
               lock_aquired(expiry)
+              df.succeed(expiry)
             else
               # Another client got there first
-              fail(expiry_2)
+              df.fail(expiry_2)
             end
           }
         else
-          fail(expiry_1)
+          df.fail(expiry_1)
         end
       }
     end
@@ -75,7 +81,6 @@ module EM::Hiredis
         EM::Hiredis.logger.debug "Lock: #{@key} will expire in 1s"
         @onexpire.call if @onexpire
       }
-      succeed
     end
   end
 end
