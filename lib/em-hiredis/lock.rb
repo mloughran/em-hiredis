@@ -9,20 +9,20 @@ module EM::Hiredis
       @expiry = nil
     end
 
-    # Aquire the lock
+    # Acquire the lock
     #
-    # It is ok to call aquire again before the lock expires, which will attempt to extend the existing lock.
+    # It is ok to call acquire again before the lock expires, which will attempt to extend the existing lock.
     #
-    # Returns a deferrable which either succeeds if the lock can be aquired, or fails if it cannot. In both cases the expiry timestamp is returned (for the new lock or for the expired one respectively)
-    def aquire
+    # Returns a deferrable which either succeeds if the lock can be acquired, or fails if it cannot. In both cases the expiry timestamp is returned (for the new lock or for the expired one respectively)
+    def acquire
       df = EM::DefaultDeferrable.new
       expiry = new_expiry
       @redis.setnx(@key, expiry) { |setnx|
         if setnx == 1
-          lock_aquired(expiry)
+          lock_acquired(expiry)
           df.succeed(expiry)
         else
-          attempt_to_aquire_existing_lock(df)
+          attempt_to_acquire_existing_lock(df)
         end
       }
       return df
@@ -47,7 +47,7 @@ module EM::Hiredis
 
     private
 
-    def attempt_to_aquire_existing_lock(df)
+    def attempt_to_acquire_existing_lock(df)
       @redis.get(@key) { |expiry_1|
         expiry_1 = expiry_1.to_i
         if expiry_1 == @expiry || expiry_1 < Time.now.to_i
@@ -56,7 +56,7 @@ module EM::Hiredis
           @redis.getset(@key, expiry) { |expiry_2|
             expiry_2 = expiry_2.to_i
             if expiry_2 == @expiry || expiry_2 < Time.now.to_i
-              lock_aquired(expiry)
+              lock_acquired(expiry)
               df.succeed(expiry)
             else
               # Another client got there first
@@ -73,8 +73,8 @@ module EM::Hiredis
       Time.now.to_i + @timeout + 1
     end
 
-    def lock_aquired(expiry)
-      EM::Hiredis.logger.debug "Lock: aquired #{@key}"
+    def lock_acquired(expiry)
+      EM::Hiredis.logger.debug "Lock: acquired #{@key}"
       @locked = true
       @expiry = expiry
       EM.cancel_timer(@expire_timer) if @expire_timer
