@@ -578,8 +578,8 @@ describe EventMachine::Hiredis, "commands" do
       redis.zadd 'zset', 2, 'set2'
       redis.zadd 'zset', 3, 'set3'
       redis.zadd 'zset', 4, 'set4'
-      command = redis.zrangebyscore('zset', 2, 3, :with_scores => true)
-      command.callback { |r| r.should == ['set2', 2, 'set3', 3] }
+      command = redis.zrangebyscore('zset', 2, 3, "WITHSCORES")
+      command.callback { |r| r.should == ['set2', "2", 'set3', "3"] }
       command.errback { |e| e.should be_false }
       redis.del('zset') { done }
     end
