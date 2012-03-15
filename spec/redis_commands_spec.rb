@@ -572,7 +572,7 @@ describe EventMachine::Hiredis, "commands" do
     end
   end
 
-  it "gets a range by score of values from a zset with_scores", :failing => true do
+  it "gets a range by score of values from a zset with_scores" do
     connect do |redis|
       redis.zadd 'zset', 1, 'set'
       redis.zadd 'zset', 2, 'set2'
