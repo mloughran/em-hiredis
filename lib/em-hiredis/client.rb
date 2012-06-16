@@ -142,8 +142,8 @@ module EventMachine::Hiredis
       hash_processor = lambda do |response|
         info = {}
         response.each_line do |line|
-          key, value = line.split(":", 2)
-          info[key.to_sym] = value.chomp
+          key, value = line.chomp.split(":", 2)
+          info[key.to_sym] = value if value && key =~ /^[^#]/
         end
         blk.call(info)
       end
