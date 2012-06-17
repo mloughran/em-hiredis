@@ -611,9 +611,20 @@ describe EventMachine::Hiredis, "commands" do
   it "provides info (INFO)" do
     connect do |redis|
       redis.info do |r|
-        [:last_save_time, :redis_version, :total_connections_received, :connected_clients, :total_commands_processed, :connected_slaves, :uptime_in_seconds, :used_memory, :uptime_in_days, :changes_since_last_save].each do |x|
+        [:redis_version, :total_connections_received, :connected_clients, :total_commands_processed, :connected_slaves, :uptime_in_seconds, :used_memory, :uptime_in_days].each do |x|
           r.keys.include?(x).should == true
         end
+        done
+      end
+    end
+  end
+
+  it "provides commandstats (INFO COMMANDSTATS)" do
+    connect do |redis|
+      redis.info_commandstats do |r|
+        r[:get][:calls].should be_a_kind_of(Integer)
+        r[:get][:usec].should be_a_kind_of(Integer)
+        r[:get][:usec_per_call].should be_a_kind_of(Float)
         done
       end
     end
