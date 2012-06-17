@@ -150,6 +150,24 @@ module EventMachine::Hiredis
       method_missing(:info, &hash_processor)
     end
 
+    def info_commandstats(&blk)
+      hash_processor = lambda do |response|
+        commands = {}
+        response.each_line do |line|
+          command, data = line.split(':')
+          if data
+            c = commands[command.sub('cmdstat_', '').to_sym] = {}
+            data.split(',').each do |d|
+              k, v = d.split('=')
+              c[k.to_sym] = v =~ /\./ ? v.to_f : v.to_i
+            end
+          end
+        end
+        blk.call(commands)
+      end
+      method_missing(:info, 'commandstats', &hash_processor)
+    end
+
     def close_connection
       @closing_connection = true
       @connection.close_connection_after_writing

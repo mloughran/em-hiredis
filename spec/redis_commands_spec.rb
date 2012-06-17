@@ -619,6 +619,17 @@ describe EventMachine::Hiredis, "commands" do
     end
   end
 
+  it "provides commandstats (INFO COMMANDSTATS)" do
+    connect do |redis|
+      redis.info_commandstats do |r|
+        r[:get][:calls].should be_a_kind_of(Integer)
+        r[:get][:usec].should be_a_kind_of(Integer)
+        r[:get][:usec_per_call].should be_a_kind_of(Float)
+        done
+      end
+    end
+  end
+
   it "flushes the database (FLUSHDB)" do
     connect do |redis|
       redis.set('key1', 'keyone')
