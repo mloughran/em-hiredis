@@ -59,7 +59,8 @@ module EventMachine::Hiredis
           @deferred_status = nil
           @connected = false
           unless @closing_connection
-            reconnect
+            # Next tick avoids reconnecting after for example EM.stop
+            EM.next_tick { reconnect }
           end
           emit(:disconnected)
           EM::Hiredis.logger.info("#{@connection.to_s} disconnected")
