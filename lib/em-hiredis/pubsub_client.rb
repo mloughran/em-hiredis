@@ -14,8 +14,8 @@ module EventMachine::Hiredis
       
       # Resubsubscribe to channels on reconnect
       on(:reconnected) {
-        raw_send_command(:subscribe, *@subs) if @subs.any?
-        raw_send_command(:psubscribe, *@psubs) if @psubs.any?
+        raw_send_command(:subscribe, @subs) if @subs.any?
+        raw_send_command(:psubscribe, @psubs) if @psubs.any?
       }
       
       super
@@ -33,7 +33,7 @@ module EventMachine::Hiredis
         @sub_callbacks[channel] << cb
       end
       @subs << channel
-      raw_send_command(:subscribe, channel)
+      raw_send_command(:subscribe, [channel])
       return pubsub_deferrable(channel)
     end
     
@@ -44,7 +44,7 @@ module EventMachine::Hiredis
     def unsubscribe(channel)
       @sub_callbacks.delete(channel)
       @subs.delete(channel)
-      raw_send_command(:unsubscribe, channel)
+      raw_send_command(:unsubscribe, [channel])
       return pubsub_deferrable(channel)
     end
 
@@ -86,7 +86,7 @@ module EventMachine::Hiredis
         @psub_callbacks[pattern] << cb
       end
       @psubs << pattern
-      raw_send_command(:psubscribe, pattern)
+      raw_send_command(:psubscribe, [pattern])
       return pubsub_deferrable(pattern)
     end
 
@@ -97,7 +97,7 @@ module EventMachine::Hiredis
     def punsubscribe(pattern)
       @psub_callbacks.delete(pattern)
       @psubs.delete(pattern)
-      raw_send_command(:punsubscribe, pattern)
+      raw_send_command(:punsubscribe, [pattern])
       return pubsub_deferrable(pattern)
     end
 
@@ -131,12 +131,12 @@ module EventMachine::Hiredis
     # Send a command to redis without adding a deferrable for it. This is
     # useful for commands for which replies work or need to be treated
     # differently
-    def raw_send_command(sym, *args)
+    def raw_send_command(sym, args)
       if @connected
-        @connection.send_command(sym, *args)
+        @connection.send_command(sym, args)
       else
         callback do
-          @connection.send_command(sym, *args)
+          @connection.send_command(sym, args)
         end
       end
       return nil

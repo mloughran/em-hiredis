@@ -91,7 +91,7 @@ module EventMachine::Hiredis
         auth(@password) if @password
 
         @command_queue.each do |df, command, args|
-          @connection.send_command(command, *args)
+          @connection.send_command(command, args)
           @defs.push(df)
         end
         @command_queue = []
@@ -167,7 +167,7 @@ module EventMachine::Hiredis
       deferred.callback { |result| yield(result) } if block_given?
 
       if @connected
-        @connection.send_command(sym, *args)
+        @connection.send_command(sym, args)
         @defs.push(deferred)
       elsif @failed
         deferred.fail(Error.new("Redis connection in failed state"))

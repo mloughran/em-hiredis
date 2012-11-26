@@ -32,8 +32,8 @@ module EventMachine::Hiredis
       emit(:closed)
     end
 
-    def send_command(sym, *args)
-      send_data(command(sym, *args))
+    def send_command(command, args)
+      send_data(command(command, *args))
     end
 
     def to_s
