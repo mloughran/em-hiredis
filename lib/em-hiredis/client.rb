@@ -15,7 +15,7 @@ module EventMachine::Hiredis
         info = {}
         response.each_line do |line|
           key, value = line.split(":", 2)
-          info[key.to_sym] = value.chomp
+          info[key.to_sym] = value.chomp if value
         end
         df.succeed(info)
       }
