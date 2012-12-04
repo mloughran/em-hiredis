@@ -46,7 +46,7 @@ module EventMachine::Hiredis
       @port = uri.port
       @password = uri.password
       path = uri.path[1..-1]
-      @db = path.empty? ? nil : path
+      @db = path.to_i # Empty path => 0
     end
 
     def connect
@@ -87,7 +87,7 @@ module EventMachine::Hiredis
         @reconnect_failed_count = 0
         @failed = false
 
-        select(@db) if @db
+        select(@db) unless @db == 0
         auth(@password) if @password
 
         @command_queue.each do |df, command, args|

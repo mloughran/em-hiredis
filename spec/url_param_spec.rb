@@ -7,7 +7,7 @@ describe EventMachine::Hiredis, "URL parsing" do
 
     redis.host.should == "127.0.0.1"
     redis.port.should == 6379
-    redis.db.should == "0"
+    redis.db.should == 0
     redis.password.should == nil
   end
 
@@ -16,7 +16,7 @@ describe EventMachine::Hiredis, "URL parsing" do
 
     redis.host.should == "foo.com"
     redis.port.should == 999
-    redis.db.should == "2"
+    redis.db.should == 2
     redis.password.should == "secr3t"
   end
 
@@ -35,7 +35,7 @@ describe EventMachine::Hiredis, "URL parsing" do
 
     redis.host.should == "foo.com"
     redis.port.should == 999
-    redis.db.should == "2"
+    redis.db.should == 2
     redis.password.should == "secr3t"
 
     ENV.delete("REDIS_URL")
