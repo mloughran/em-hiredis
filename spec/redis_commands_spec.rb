@@ -810,8 +810,9 @@ describe EventMachine::Hiredis, "with nested multi-bulk response" do
       redis.multi
       redis.smembers "user:one:interests"
       redis.smembers "user:two:interests"
-      redis.exec do |user_interests|
-        user_interests.should == [["second-interest", "first-interest"], ['third-interest']]
+      redis.exec do |interests_one, interests_two|
+        interests_one.sort.should == ["first-interest", "second-interest"]
+        interests_two.should == ['third-interest']
       end
       redis.mget("user:one:id", "user:two:id") do |user_ids|
         user_ids.should == ['id-one', 'id-two']
@@ -824,11 +825,20 @@ end
 describe EventMachine::Hiredis, "monitor" do
   it "returns monitored commands" do
     connect do |redis|
-      redis.monitor do |reply|
-        reply.should == "OK"
-      end
+      # 1. Create 2nd connection to send traffic to monitor
+      redis2 = EventMachine::Hiredis.connect("redis://localhost:6379/")
+      redis2.callback {
+        # 2. Monitor after command has connected
+        redis.monitor do |reply|
+          reply.should == "OK"
+
+          # 3. Command which should show up in monitor output
+          redis2.get('foo')
+        end
+      }
+
       redis.on(:monitor) do |line|
-        line.should =~ /monitor/
+        line.should =~ /foo/
         done
       end
     end
