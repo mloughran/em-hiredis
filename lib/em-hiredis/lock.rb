@@ -29,15 +29,23 @@ module EM::Hiredis
     end
 
     # Release the lock
+    #
+    # Returns a deferrable
     def unlock
       EM.cancel_timer(@expire_timer) if @expire_timer
       
-      if @locked && Time.now.to_i < @expiry
-        EM::Hiredis.logger.debug "Lock: released #{@key}"
-        @redis.del(@key)
-      else
-        EM::Hiredis.logger.debug "Lock: could not release #{@key}"
+      unless active
+        df = EM::DefaultDeferrable.new
+        df.fail Error.new("Cannot unlock, lock not active")
+        return df
       end
+
+      @redis.del(@key)
+    end
+
+    # Lock has been acquired and we're within it's expiry time
+    def active
+      @locked && Time.now.to_i < @expiry
     end
 
     # This should not be used in normal operation - force clear
