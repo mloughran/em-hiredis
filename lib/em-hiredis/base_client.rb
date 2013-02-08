@@ -63,7 +63,7 @@ module EventMachine::Hiredis
             EM.next_tick { reconnect }
           end
           emit(:disconnected)
-          EM::Hiredis.logger.info("#{@connection.to_s} disconnected")
+          EM::Hiredis.logger.info("#{@connection} Disconnected")
         else
           unless @closing_connection
             @reconnect_failed_count += 1
@@ -72,7 +72,7 @@ module EventMachine::Hiredis
               reconnect
             }
             emit(:reconnect_failed, @reconnect_failed_count)
-            EM::Hiredis.logger.info("#{@connection.to_s} reconnect failed")
+            EM::Hiredis.logger.info("#{@connection} Reconnect failed")
 
             if @reconnect_failed_count >= 4
               emit(:failed)
@@ -97,7 +97,7 @@ module EventMachine::Hiredis
         @command_queue = []
 
         emit(:connected)
-        EM::Hiredis.logger.info("#{@connection.to_s} connected")
+        EM::Hiredis.logger.info("#{@connection} Connected")
         succeed
 
         if @reconnecting
@@ -181,7 +181,7 @@ module EventMachine::Hiredis
     def reconnect
       @reconnecting = true
       @connection.reconnect @host, @port
-      EM::Hiredis.logger.info("#{@connection.to_s} reconnecting")
+      EM::Hiredis.logger.info("#{@connection} Reconnecting")
     end
 
     def handle_reply(reply)
