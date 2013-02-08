@@ -103,8 +103,9 @@ describe EM::Hiredis::BaseClient do
           fail "Should have received error response from redis"
         }
         df.errback { |e|
-          e.class.should == EM::Hiredis::Error
-          e.message.should == 'Error reply from redis'
+          e.class.should == EM::Hiredis::RedisError
+          e.should be_kind_of(EM::Hiredis::Error)
+          e.message.should == 'Error reply from redis (wrapped in redis_error)'
           # This is the wrapped error from redis:
           e.redis_error.message.should == 'ERR Operation against a key holding the wrong kind of value'
           done

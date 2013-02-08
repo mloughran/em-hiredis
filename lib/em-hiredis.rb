@@ -2,9 +2,12 @@ require 'eventmachine'
 
 module EventMachine
   module Hiredis
-    class Error < RuntimeError
-      # In the case of error responses from Redis, the RuntimeError returned
-      # by ::Hiredis will be wrapped
+    # All em-hiredis errors should descend from EM::Hiredis::Error
+    class Error < RuntimeError; end
+
+    # In the case of error responses from Redis, the RuntimeError returned
+    # by ::Hiredis will be wrapped
+    class RedisError < Error
       attr_accessor :redis_error
     end
 
