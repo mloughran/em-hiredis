@@ -1,6 +1,7 @@
 module EM::Hiredis
   # Distributed lock built on redis
   class Lock
+    # Register an callback which will be called 1s before the lock expires
     def onexpire(&blk); @onexpire = blk; end
 
     def initialize(redis, key, timeout)
@@ -20,6 +21,7 @@ module EM::Hiredis
       @redis.setnx(@key, expiry).callback { |setnx|
         if setnx == 1
           lock_acquired(expiry)
+          EM::Hiredis.logger.debug "#{to_s} Acquired new lock"
           df.succeed(expiry)
         else
           attempt_to_acquire_existing_lock(df)
@@ -55,6 +57,10 @@ module EM::Hiredis
       @redis.del(@key)
     end
 
+    def to_s
+      "[lock #{@key}]"
+    end
+
     private
 
     def attempt_to_acquire_existing_lock(df)
@@ -67,15 +73,17 @@ module EM::Hiredis
             expiry_2 = expiry_2.to_i
             if expiry_2 == @expiry || expiry_2 < Time.now.to_i
               lock_acquired(expiry)
+              EM::Hiredis.logger.debug "#{to_s} Acquired existing lock"
               df.succeed(expiry)
             else
               # Another client got there first
-              EM::Hiredis.logger.debug "Lock: failed to acquire #{@key}"
+              EM::Hiredis.logger.debug "#{to_s} Could not acquire - another process acquired while we were in the process of acquiring"
               df.fail(expiry_2)
             end
           }
         else
-          EM::Hiredis.logger.debug "Lock: failed to acquire #{@key}"
+          # Someone else has an active lock
+          EM::Hiredis.logger.debug "#{to_s} Could not acquire - held by another process"
           df.fail(expiry_1)
         end
       }
@@ -86,12 +94,11 @@ module EM::Hiredis
     end
 
     def lock_acquired(expiry)
-      EM::Hiredis.logger.debug "Lock: acquired #{@key}"
       @locked = true
       @expiry = expiry
       EM.cancel_timer(@expire_timer) if @expire_timer
       @expire_timer = EM.add_timer(@timeout) {
-        EM::Hiredis.logger.debug "Lock: #{@key} will expire in 1s"
+        EM::Hiredis.logger.debug "#{to_s} Expires in 1s"
         @onexpire.call if @onexpire
       }
     end
