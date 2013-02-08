@@ -41,6 +41,9 @@ module EventMachine
         log
       end
     end
+
+    autoload :Lock, 'em-hiredis/lock'
+    autoload :PersistentLock, 'em-hiredis/persistent_lock'
   end
 end
 
@@ -49,5 +52,3 @@ require 'em-hiredis/connection'
 require 'em-hiredis/base_client'
 require 'em-hiredis/client'
 require 'em-hiredis/pubsub_client'
-require 'em-hiredis/lock'
-require 'em-hiredis/persistent_lock'
