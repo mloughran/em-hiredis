@@ -17,13 +17,15 @@ module EM::Hiredis
     def acquire
       df = EM::DefaultDeferrable.new
       expiry = new_expiry
-      @redis.setnx(@key, expiry) { |setnx|
+      @redis.setnx(@key, expiry).callback { |setnx|
         if setnx == 1
           lock_acquired(expiry)
           df.succeed(expiry)
         else
           attempt_to_acquire_existing_lock(df)
         end
+      }.errback { |e|
+        df.fail(e)
       }
       return df
     end
