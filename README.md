@@ -1,5 +1,20 @@
-Getting started
-===============
+# em-hiredis
+
+## What
+
+A Redis client for EventMachine designed to be fast and simple.
+
+## Why
+
+I wanted a client which:
+
+* used the C hiredis library to parse redis replies
+* had a convenient API for pubsub
+* exposed the state of the underlying redis connections so that custom failover logic could be written outside the library
+
+Also, <https://github.com/madsimian/em-redis> is no longer maintained.
+
+## Getting started
 
 Connect to redis:
 
@@ -10,15 +25,23 @@ Or, connect to redis with a redis URL (for a different host, port, password, DB)
 
     redis = EM::Hiredis.connect("redis://:secretpassword@example.com:9000/4")
 
-The client is a deferrable which succeeds when the underlying connection is established so you can bind to this. This isn't necessary however - any commands sent before the connection is established (or while reconnecting) will be sent to redis on connect.
+Commands may be sent immediately. Any commands sent while connecting to redis will be queued.
 
-    redis.callback { puts "Redis now connected" }
-
-All redis commands are available without any remapping of names
+All redis commands are available without any remapping of names, and return a deferrable
 
     redis.set('foo', 'bar').callback {
       redis.get('foo').callback { |value|
         p [:returned, value]
+      }
+    }
+
+If redis replies with an error (for example you called a hash operation against a set or the database is full), or if the redis connection disconnects before the command returns, the deferrable will fail.
+
+    redis.sadd('aset', 'member').callback {
+      response_deferrable = redis.hget('aset', 'member')
+      response_deferrable.errback { |e|
+        p e # => #<EventMachine::Hiredis::RedisError: Error reply from redis (wrapped in redis_error)>
+        p e.redis_error # => #<RuntimeError: ERR Operation against a key holding the wrong kind of value>
       }
     }
 
@@ -28,34 +51,38 @@ As a shortcut, if you're only interested in binding to the success case you can 
       p [:returned, value]
     }
 
-Handling failure
-----------------
+## Understanding the state of the connection
 
-All commands return a deferrable. In the case that redis replies with an error (for example you called a hash operation against a set), or in the case that the redis connection is broken before the command returns, the deferrable will fail. If you care about the failure case you should bind to the errback - for example:
+When a connection to redis server closes, a `:disconnected` event will be emitted and the connection will be immediately reconnect. If the connection reconnects a `:connected` event will be emitted.
 
-    redis.sadd('aset', 'member').callback {
-      response_deferrable = redis.hget('aset', 'member')
-      response_deferrable.errback { |e|
-        p e # => #<RuntimeError: ERR Operation against a key holding the wrong kind of value>
-      }
-    }
+If a reconnect fails to connect, a `:reconnect_failed` event will be emitted (rather than `:disconnected`) with the number of consecutive failures, and the connection will be retried after a timeout (defaults to 0.5s, can be set via `EM::Hiredis.reconnect_timeout=`).
 
-Pubsub
-------
+If a client fails to reconnect 4 consecutive times then a `:failed` event will be emitted, and any queued redis commands will be failed (otherwise they would be queued forever waiting for a reconnect).
 
-This example should explain things. Once a redis connection is in a pubsub state, you must make sure you only send pubsub commands.
+## Pubsub
 
+The way pubsub works in redis is that once a subscribe has been made on a connection, it's only possible to send (p)subscribe or (p)unsubscribe commands on that connection. The connection will also receive messages which are not replies to commands.
+
+The regular `EM::Hiredis::Client` no longer understands pubsub messages - this logic has been moved to `EM::Hiredis::PubsubClient`. The pubsub client can either be initialized directly (see code) or you can get one connected to the same redis server by calling `#pubsub` on an existing `EM::Hiredis::Client` instance.
+
+Pubsub can either be used in em-hiredis in a close-to-the-metal fashion, or you can use the convenience functionality for binding blocks to subscriptions if you prefer (recommended).
+
+### Close to the metal
+
+Basically just bind to `:message` and `:pmessage` events:
+
+    # Create two connections, one will be used for subscribing
     redis = EM::Hiredis.connect
-    subscriber = EM::Hiredis.connect
+    pubsub = redis.pubsub
 
-    subscriber.subscribe('bar.0')
-    subscriber.psubscribe('bar.*')
+    pubsub.subscribe('bar.0').callback { puts "Subscribed" }
+    pubsub.psubscribe('bar.*')
 
-    subscriber.on(:message) { |channel, message|
+    pubsub.on(:message) { |channel, message|
       p [:message, channel, message]
     }
 
-    subscriber.on(:pmessage) { |key, channel, message|
+    pubsub.on(:pmessage) { |key, channel, message|
       p [:pmessage, key, channel, message]
     }
 
@@ -65,8 +92,33 @@ This example should explain things. Once a redis connection is in a pubsub state
       }
     }
 
-Hacking
--------
+### Richer interface to pubsub
+
+If you pass a block to `subscribe` or `psubscribe`, the passed block will be called whenever a message arrives on that subscription:
+
+    redis = EM::Hiredis.connect
+
+    puts "Subscribing"
+    redis.pubsub.subscribe("foo") { |msg|
+      p [:sub1, msg]
+    }
+
+    redis.pubsub.psubscribe("f*") { |msg|
+      p [:sub2, msg]
+    }
+
+    EM.add_periodic_timer(1) {
+      redis.publish("foo", "Hello")
+    }
+
+    EM.add_timer(5) {
+      puts "Unsubscribing sub1"
+      redis.pubsub.unsubscribe("foo")
+    }
+
+It's possible to subscribe to the same channel multiple time and just unsubscribe a single callback using `unsubscribe_proc` or `punsubscribe_proc`.
+
+## Developing
 
 Hacking on em-hiredis is pretty simple, make sure you have Bundler installed:
 
