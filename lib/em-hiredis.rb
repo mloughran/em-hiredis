@@ -1,11 +1,26 @@
 require 'eventmachine'
-require 'uri'
 
 module EventMachine
   module Hiredis
+    # All em-hiredis errors should descend from EM::Hiredis::Error
+    class Error < RuntimeError; end
+
+    # In the case of error responses from Redis, the RuntimeError returned
+    # by ::Hiredis will be wrapped
+    class RedisError < Error
+      attr_accessor :redis_error
+    end
+
+    class << self
+      attr_accessor :reconnect_timeout
+    end
+    self.reconnect_timeout = 0.5
+
     def self.setup(uri = nil)
-      url = URI(uri || ENV["REDIS_URL"] || "redis://127.0.0.1:6379/0")
-      Client.new(url.host, url.port, url.password, url.path[1..-1])
+      uri = uri || ENV["REDIS_URL"] || "redis://127.0.0.1:6379/0"
+      client = Client.new
+      client.configure(uri)
+      client
     end
 
     def self.connect(uri = nil)
@@ -26,9 +41,14 @@ module EventMachine
         log
       end
     end
+
+    autoload :Lock, 'em-hiredis/lock'
+    autoload :PersistentLock, 'em-hiredis/persistent_lock'
   end
 end
 
 require 'em-hiredis/event_emitter'
 require 'em-hiredis/connection'
+require 'em-hiredis/base_client'
 require 'em-hiredis/client'
+require 'em-hiredis/pubsub_client'

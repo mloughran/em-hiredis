@@ -7,10 +7,15 @@ module EventMachine::Hiredis
     def initialize(host, port)
       super
       @host, @port = host, port
+      @name = "[em-hiredis #{@host}:#{@port}]"
+    end
+
+    def reconnect(host, port)
+      super
+      @host, @port = host, port
     end
 
     def connection_completed
-      EventMachine::Hiredis.logger.info("Connected to Redis")
       @reader = ::Hiredis::Reader.new
       emit(:connected)
     end
@@ -23,12 +28,15 @@ module EventMachine::Hiredis
     end
 
     def unbind
-      EventMachine::Hiredis.logger.info("Disconnected from Redis")
       emit(:closed)
     end
 
-    def send_command(sym, *args)
-      send_data(command(sym, *args))
+    def send_command(command, args)
+      send_data(command(command, *args))
+    end
+
+    def to_s
+      @name
     end
 
     protected

@@ -14,7 +14,7 @@ describe EventMachine::Hiredis, "connecting" do
 
   def connect_to_mock(url, &blk)
     redis_mock(replies) do
-      connect(url, &blk)
+      connect(1, url, &blk)
     end
   end
 
