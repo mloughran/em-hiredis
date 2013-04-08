@@ -1,7 +1,51 @@
+require 'digest/sha1'
+
 module EventMachine::Hiredis
   class Client < BaseClient
     def self.connect(host = 'localhost', port = 6379)
       new(host, port).connect
+    end
+
+    def self.load_scripts_from(dir)
+      Dir.glob("#{dir}/*.lua").each do |f|
+        name = Regexp.new(/([^\/]*)\.lua$/).match(f)[1]
+        lua = File.open(f, 'r').read
+        EM::Hiredis.logger.debug { "Registering script: #{name}" }
+        EM::Hiredis::Client.register_script(name, lua)
+      end
+    end
+
+    def self.register_script(name, lua)
+      sha = Digest::SHA1.hexdigest(lua)
+      self.send(:define_method, name.to_sym) { |keys, args=[]|
+        eval_script(lua, sha, keys, args)
+      }
+    end
+
+    def register_script(name, lua)
+      sha = Digest::SHA1.hexdigest(lua)
+      singleton = class << self; self end
+      singleton.send(:define_method, name.to_sym) { |keys, args=[]|
+        eval_script(lua, sha, keys, args)
+      }
+    end
+
+    def eval_script(lua, lua_sha, keys, args)
+      df = EM::DefaultDeferrable.new
+      method_missing(:evalsha, lua_sha, keys.size, *keys, *args).callback(
+        &df.method(:succeed)
+      ).errback { |e|
+        if e.kind_of?(RedisError) && e.redis_error.message.start_with?("NOSCRIPT")
+          self.eval(lua, keys.size, *keys, *args).callback(
+            &df.method(:succeed)
+          ).errback { |e2|
+            df.fail(e2)
+          }
+        else
+          df.fail(e)
+        end
+      }
+      df
     end
 
     def monitor(&blk)
