@@ -23,6 +23,13 @@ module EventMachine
       client
     end
 
+    # Connects to redis and returns a client instance
+    #
+    # Will connect in preference order to the provided uri, the REDIS_URL
+    # environment variable, or localhost:6379
+    #
+    # TCP connections are supported via redis://:password@host:port/db (only
+    # host and port components are required)
     def self.connect(uri = nil)
       client = setup(uri)
       client.connect
