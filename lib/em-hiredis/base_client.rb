@@ -42,11 +42,17 @@ module EventMachine::Hiredis
     #
     def configure(uri_string)
       uri = URI(uri_string)
-      @host = uri.host
-      @port = uri.port
-      @password = uri.password
-      path = uri.path[1..-1]
-      @db = path.to_i # Empty path => 0
+
+      if uri.scheme == "unix"
+        @host = uri.path
+        @port = nil
+      else
+        @host = uri.host
+        @port = uri.port
+        @password = uri.password
+        path = uri.path[1..-1]
+        @db = path.to_i # Empty path => 0
+      end
     end
 
     def connect
