@@ -36,11 +36,8 @@ module EventMachine::Hiredis
         &df.method(:succeed)
       ).errback { |e|
         if e.kind_of?(RedisError) && e.redis_error.message.start_with?("NOSCRIPT")
-          self.eval(lua, keys.size, *keys, *args).callback(
-            &df.method(:succeed)
-          ).errback { |e2|
-            df.fail(e2)
-          }
+          self.eval(lua, keys.size, *keys, *args)
+            .callback(&df.method(:succeed)).errback(&df.method(:fail))
         else
           df.fail(e)
         end
