@@ -116,7 +116,7 @@ module EventMachine::Hiredis
         if RuntimeError === reply
           raise "Replies out of sync: #{reply.inspect}" if @defs.empty?
           deferred = @defs.shift
-          error = RedisError.new("Error reply from redis (wrapped in redis_error)")
+          error = RedisError.new(reply.message)
           error.redis_error = reply
           deferred.fail(error) if deferred
         else
