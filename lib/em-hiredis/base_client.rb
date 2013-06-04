@@ -55,6 +55,18 @@ module EventMachine::Hiredis
       end
     end
 
+    # Disconnect then reconnect the redis connection.
+    #
+    # Pass optional uri - e.g. to connect to a different redis server.
+    # Any pending redis commands will be failed, but during the reconnection
+    # new commands will be queued and sent after connected.
+    #
+    def reconnect!(new_uri = nil)
+      @connection.close_connection
+      configure(new_uri) if new_uri
+      EM.next_tick { reconnect_connection }
+    end
+
     def connect
       @connection = EM.connect(@host, @port, Connection, @host, @port)
 
@@ -160,6 +172,8 @@ module EventMachine::Hiredis
       @connection.close_connection_after_writing
     end
 
+    # Note: This method doesn't disconnect if already connected. You probably
+    # want to use `reconnect!`
     def reconnect_connection
       EM.cancel_timer(@reconnect_timer) if @reconnect_timer
       reconnect
