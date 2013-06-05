@@ -21,7 +21,6 @@ module EventMachine::Hiredis
       @defs = []
       @command_queue = []
 
-      @closing_connection = false
       @reconnect_failed_count = 0
       @reconnect_timer = nil
       @failed = false
@@ -64,10 +63,12 @@ module EventMachine::Hiredis
     def reconnect!(new_uri = nil)
       @connection.close_connection
       configure(new_uri) if new_uri
+      @auto_reconnect = true
       EM.next_tick { reconnect_connection }
     end
 
     def connect
+      @auto_reconnect = true
       @connection = EM.connect(@host, @port, Connection, @host, @port)
 
       @connection.on(:closed) do
@@ -76,14 +77,14 @@ module EventMachine::Hiredis
           @defs = []
           @deferred_status = nil
           @connected = false
-          unless @closing_connection
+          if @auto_reconnect
             # Next tick avoids reconnecting after for example EM.stop
             EM.next_tick { reconnect }
           end
           emit(:disconnected)
           EM::Hiredis.logger.info("#{@connection} Disconnected")
         else
-          unless @closing_connection
+          if @auto_reconnect
             @reconnect_failed_count += 1
             @reconnect_timer = EM.add_timer(EM::Hiredis.reconnect_timeout) {
               @reconnect_timer = nil
@@ -168,13 +169,14 @@ module EventMachine::Hiredis
 
     def close_connection
       EM.cancel_timer(@reconnect_timer) if @reconnect_timer
-      @closing_connection = true
+      @auto_reconnect = false
       @connection.close_connection_after_writing
     end
 
     # Note: This method doesn't disconnect if already connected. You probably
     # want to use `reconnect!`
     def reconnect_connection
+      @auto_reconnect = true
       EM.cancel_timer(@reconnect_timer) if @reconnect_timer
       reconnect
     end
