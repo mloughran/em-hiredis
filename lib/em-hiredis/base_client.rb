@@ -16,12 +16,11 @@ module EventMachine::Hiredis
 
     attr_reader :host, :port, :password, :db
 
-    def initialize(host='localhost', port='6379', password=nil, db=nil)
+    def initialize(host = 'localhost', port = 6379, password = nil, db = nil)
       @host, @port, @password, @db = host, port, password, db
       @defs = []
       @command_queue = []
 
-      @closing_connection = false
       @reconnect_failed_count = 0
       @reconnect_timer = nil
       @failed = false
@@ -42,14 +41,34 @@ module EventMachine::Hiredis
     #
     def configure(uri_string)
       uri = URI(uri_string)
-      @host = uri.host
-      @port = uri.port
-      @password = uri.password
-      path = uri.path[1..-1]
-      @db = path.to_i # Empty path => 0
+
+      if uri.scheme == "unix"
+        @host = uri.path
+        @port = nil
+      else
+        @host = uri.host
+        @port = uri.port
+        @password = uri.password
+        path = uri.path[1..-1]
+        @db = path.to_i # Empty path => 0
+      end
+    end
+
+    # Disconnect then reconnect the redis connection.
+    #
+    # Pass optional uri - e.g. to connect to a different redis server.
+    # Any pending redis commands will be failed, but during the reconnection
+    # new commands will be queued and sent after connected.
+    #
+    def reconnect!(new_uri = nil)
+      @connection.close_connection
+      configure(new_uri) if new_uri
+      @auto_reconnect = true
+      EM.next_tick { reconnect_connection }
     end
 
     def connect
+      @auto_reconnect = true
       @connection = EM.connect(@host, @port, Connection, @host, @port)
 
       @connection.on(:closed) do
@@ -58,14 +77,14 @@ module EventMachine::Hiredis
           @defs = []
           @deferred_status = nil
           @connected = false
-          unless @closing_connection
+          if @auto_reconnect
             # Next tick avoids reconnecting after for example EM.stop
             EM.next_tick { reconnect }
           end
           emit(:disconnected)
           EM::Hiredis.logger.info("#{@connection} Disconnected")
         else
-          unless @closing_connection
+          if @auto_reconnect
             @reconnect_failed_count += 1
             @reconnect_timer = EM.add_timer(EM::Hiredis.reconnect_timeout) {
               @reconnect_timer = nil
@@ -110,7 +129,7 @@ module EventMachine::Hiredis
         if RuntimeError === reply
           raise "Replies out of sync: #{reply.inspect}" if @defs.empty?
           deferred = @defs.shift
-          error = RedisError.new("Error reply from redis (wrapped in redis_error)")
+          error = RedisError.new(reply.message)
           error.redis_error = reply
           deferred.fail(error) if deferred
         else
@@ -150,11 +169,14 @@ module EventMachine::Hiredis
 
     def close_connection
       EM.cancel_timer(@reconnect_timer) if @reconnect_timer
-      @closing_connection = true
+      @auto_reconnect = false
       @connection.close_connection_after_writing
     end
 
+    # Note: This method doesn't disconnect if already connected. You probably
+    # want to use `reconnect!`
     def reconnect_connection
+      @auto_reconnect = true
       EM.cancel_timer(@reconnect_timer) if @reconnect_timer
       reconnect
     end

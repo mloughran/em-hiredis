@@ -5,8 +5,8 @@ module EventMachine
     # All em-hiredis errors should descend from EM::Hiredis::Error
     class Error < RuntimeError; end
 
-    # In the case of error responses from Redis, the RuntimeError returned
-    # by ::Hiredis will be wrapped
+    # An error reply from Redis. The actual error retuned by ::Hiredis will be
+    # wrapped in the redis_error accessor.
     class RedisError < Error
       attr_accessor :redis_error
     end
@@ -23,6 +23,17 @@ module EventMachine
       client
     end
 
+    # Connects to redis and returns a client instance
+    #
+    # Will connect in preference order to the provided uri, the REDIS_URL
+    # environment variable, or localhost:6379
+    #
+    # TCP connections are supported via redis://:password@host:port/db (only
+    # host and port components are required)
+    #
+    # Unix socket uris are supported, e.g. unix:///tmp/redis.sock, however
+    # it's not possible to set the db or password - use initialize instead in
+    # this case
     def self.connect(uri = nil)
       client = setup(uri)
       client.connect

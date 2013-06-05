@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 (2013-04-22)
+
+[NEW] Support for connecting to redis on a unix socket.
+
+[CHANGED] Redis error reply message now used as message for RedisError.
+
 ## 0.2.0 (2013-04-05)
 
 [NEW] Richer interface for pubsub (accessible via `client.pubsub`). See example in `examples/pubsub.rb`.
