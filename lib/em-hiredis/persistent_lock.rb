@@ -21,11 +21,8 @@ module EM::Hiredis
       @redis, @key = redis, key
       @timeout = options[:lock_timeout] || 100
       @retry_timeout = options[:retry_interval] || 60
+
       @lock = EM::Hiredis::Lock.new(redis, key, @timeout)
-      @lock.onexpire {
-        # When the lock is about to expire, extend (called 1s before expiry)
-        acquire()
-      }
       @locked = false
       EM.next_tick {
         @running = true
@@ -42,6 +39,11 @@ module EM::Hiredis
           @onlocked.call if @onlocked
           @locked = true
         end
+
+        # Re-acquire lock near the end of the period
+        @extend_timer = EM.add_timer(@timeout * 2 / 3) {
+          acquire()
+        }
       }.errback { |e|
         if @locked
           # We were previously locked
@@ -54,7 +56,7 @@ module EM::Hiredis
           EM::Hiredis.logger.warn "Unexpected error acquiring #{@lock} #{err}"
         end
 
-        EM.add_timer(@retry_timeout) {
+        @retry_timer = EM.add_timer(@retry_timeout) {
           acquire() unless @locked
         }
       }
@@ -62,6 +64,8 @@ module EM::Hiredis
 
     def stop
       @running = false
+      EM.cancel_timer(@extend_timer) if @extend_timer
+      EM.cancel_timer(@retry_timer) if @retry_timer
       if @locked
         # We were previously locked
         @onunlocked.call if @onunlocked
