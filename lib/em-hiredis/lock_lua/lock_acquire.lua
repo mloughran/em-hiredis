@@ -10,7 +10,7 @@ local value = redis.call('get', key)
 
 if value == token or not value then
     -- Great, either we hold the lock or it's free for us to take
-    return redis.call('set', key, token, 'ex', timeout)
+    return redis.call('setex', key, timeout, token)
 else
     -- Someone else has it
     return false
