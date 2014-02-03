@@ -13,6 +13,9 @@ module EM::Hiredis
     def onexpire(&blk); @onexpire = blk; end
 
     def initialize(redis, key, timeout)
+      unless timeout.kind_of?(Fixnum) && timeout >= 1
+        raise "Timeout must be an integer and >= 1s"
+      end
       @redis, @key, @timeout = redis, key, timeout
       @token = SecureRandom.hex
     end
