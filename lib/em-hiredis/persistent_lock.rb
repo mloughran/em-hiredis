@@ -41,7 +41,7 @@ module EM::Hiredis
         end
 
         # Re-acquire lock near the end of the period
-        @extend_timer = EM.add_timer(@timeout * 2 / 3) {
+        @extend_timer = EM.add_timer(@timeout.to_f * 2 / 3) {
           acquire()
         }
       }.errback { |e|
