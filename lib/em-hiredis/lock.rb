@@ -1,35 +1,52 @@
+require 'securerandom'
+
 module EM::Hiredis
-  # Distributed lock built on redis
+  # Cross-process re-entrant lock, backed by redis
   class Lock
-    # Register an callback which will be called 1s before the lock expires
+
+    EM::Hiredis::Client.load_scripts_from(File.expand_path("../lock_lua", __FILE__))
+
+    # Register a callback which will be called 1s before the lock expires
+    # This is an informational callback, there is no hard guarantee on the timing
+    # of its invocation because the callback firing and lock key expiry are handled
+    # by different clocks (the client process and redis server respectively)
     def onexpire(&blk); @onexpire = blk; end
 
     def initialize(redis, key, timeout)
+      unless timeout.kind_of?(Fixnum) && timeout >= 1
+        raise "Timeout must be an integer and >= 1s"
+      end
       @redis, @key, @timeout = redis, key, timeout
-      @locked = false
-      @expiry = nil
+      @token = SecureRandom.hex
     end
 
     # Acquire the lock
     #
-    # It is ok to call acquire again before the lock expires, which will attempt to extend the existing lock.
+    # This is a re-entrant lock, re-acquiring will succeed and extend the timeout
     #
-    # Returns a deferrable which either succeeds if the lock can be acquired, or fails if it cannot. In both cases the expiry timestamp is returned (for the new lock or for the expired one respectively)
+    # Returns a deferrable which either succeeds if the lock can be acquired, or fails if it cannot.
     def acquire
       df = EM::DefaultDeferrable.new
-      expiry = new_expiry
-      @redis.setnx(@key, expiry).callback { |setnx|
-        if setnx == 1
-          lock_acquired(expiry)
-          EM::Hiredis.logger.debug "#{to_s} Acquired new lock"
-          df.succeed(expiry)
+      @redis.lock_acquire([@key], [@token, @timeout]).callback { |success|
+        if (success)
+          EM::Hiredis.logger.debug "#{to_s} acquired"
+
+          EM.cancel_timer(@expire_timer) if @expire_timer
+          @expire_timer = EM.add_timer(@timeout - 1) {
+            EM::Hiredis.logger.debug "#{to_s} Expires in 1s"
+            @onexpire.call if @onexpire
+          }
+
+          df.succeed
         else
-          attempt_to_acquire_existing_lock(df)
+          EM::Hiredis.logger.debug "#{to_s} failed to acquire"
+          df.fail("Lock is not available")
         end
       }.errback { |e|
+        EM::Hiredis.logger.error "#{to_s} Error acquiring lock #{e}"
         df.fail(e)
       }
-      return df
+      df
     end
 
     # Release the lock
@@ -37,23 +54,29 @@ module EM::Hiredis
     # Returns a deferrable
     def unlock
       EM.cancel_timer(@expire_timer) if @expire_timer
-      
-      unless active
-        df = EM::DefaultDeferrable.new
-        df.fail Error.new("Cannot unlock, lock not active")
-        return df
-      end
 
-      @redis.del(@key)
+      df = EM::DefaultDeferrable.new
+      @redis.lock_release([@key], [@token]).callback { |keys_removed|
+        if keys_removed > 0
+          EM::Hiredis.logger.debug "#{to_s} released"
+          df.succeed
+        else
+          EM::Hiredis.logger.debug "#{to_s} could not release, not held"
+          df.fail("Cannot release a lock we do not hold")
+        end
+      }.errback { |e|
+        EM::Hiredis.logger.error "#{to_s} Error releasing lock #{e}"
+        df.fail(e)
+      }
+      df
     end
 
-    # Lock has been acquired and we're within it's expiry time
-    def active
-      @locked && Time.now.to_i < @expiry
-    end
-
-    # This should not be used in normal operation - force clear
+    # This should not be used in normal operation.
+    # Force clear without regard to who owns the lock.
     def clear
+      EM::Hiredis.logger.warn "#{to_s} Force clearing lock (unsafe)"
+      EM.cancel_timer(@expire_timer) if @expire_timer
+
       @redis.del(@key)
     end
 
@@ -61,46 +84,5 @@ module EM::Hiredis
       "[lock #{@key}]"
     end
 
-    private
-
-    def attempt_to_acquire_existing_lock(df)
-      @redis.get(@key) { |expiry_1|
-        expiry_1 = expiry_1.to_i
-        if expiry_1 == @expiry || expiry_1 < Time.now.to_i
-          # Either the lock was ours or the lock has already expired
-          expiry = new_expiry
-          @redis.getset(@key, expiry) { |expiry_2|
-            expiry_2 = expiry_2.to_i
-            if expiry_2 == @expiry || expiry_2 < Time.now.to_i
-              lock_acquired(expiry)
-              EM::Hiredis.logger.debug "#{to_s} Acquired existing lock"
-              df.succeed(expiry)
-            else
-              # Another client got there first
-              EM::Hiredis.logger.debug "#{to_s} Could not acquire - another process acquired while we were in the process of acquiring"
-              df.fail(expiry_2)
-            end
-          }
-        else
-          # Someone else has an active lock
-          EM::Hiredis.logger.debug "#{to_s} Could not acquire - held by another process"
-          df.fail(expiry_1)
-        end
-      }
-    end
-
-    def new_expiry
-      Time.now.to_i + @timeout + 1
-    end
-
-    def lock_acquired(expiry)
-      @locked = true
-      @expiry = expiry
-      EM.cancel_timer(@expire_timer) if @expire_timer
-      @expire_timer = EM.add_timer(@timeout) {
-        EM::Hiredis.logger.debug "#{to_s} Expires in 1s"
-        @onexpire.call if @onexpire
-      }
-    end
   end
 end
