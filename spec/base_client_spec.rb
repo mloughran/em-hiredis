@@ -96,6 +96,11 @@ describe EM::Hiredis::BaseClient do
   end
 
   it "should wrap error responses returned by redis" do
+    # It depends on the version of redis
+    redis_errors = [
+      "ERR Operation against a key holding the wrong kind of value",
+      "WRONGTYPE Operation against a key holding the wrong kind of value"
+    ]
     connect do |redis|
       redis.sadd('foo', 'bar') {
         df = redis.get('foo')
@@ -105,11 +110,10 @@ describe EM::Hiredis::BaseClient do
         df.errback { |e|
           e.class.should == EM::Hiredis::RedisError
           e.should be_kind_of(EM::Hiredis::Error)
-          msg = "ERR Operation against a key holding the wrong kind of value"
-          e.message.should == msg
+          redis_errors.should include(e.message)
           # This is the wrapped error from redis:
           e.redis_error.class.should == RuntimeError
-          e.redis_error.message.should == msg
+          redis_errors.should include(e.redis_error.message)
           done
         }
       }
