@@ -183,10 +183,10 @@ module EventMachine::Hiredis
 
     private
 
-    def method_missing(sym, *args)
+    def method_missing(sym, *args, &blk)
       deferred = EM::DefaultDeferrable.new
       # Shortcut for defining the callback case with just a block
-      deferred.callback { |result| yield(result) } if block_given?
+      deferred.callback(&blk) if block_given?
 
       if @connected
         @connection.send_command(sym, args)
