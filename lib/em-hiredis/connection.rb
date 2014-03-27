@@ -59,11 +59,11 @@ module EventMachine::Hiredis
 
     if "".respond_to?(:bytesize)
       def string_size(string)
-        string.to_s.bytesize
+        string.bytesize
       end
     else
       def string_size(string)
-        string.to_s.size
+        string.size
       end
     end
   end
