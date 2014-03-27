@@ -13,6 +13,7 @@ module EventMachine::Hiredis
     def reconnect(host, port)
       super
       @host, @port = host, port
+      @name = "[em-hiredis #{@host}:#{@port}]"
     end
 
     def connection_completed
