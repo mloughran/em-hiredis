@@ -4,13 +4,13 @@ module EventMachine::Hiredis
 
     def initialize(host='localhost', port='6379', password=nil, db=nil)
       @subs, @psubs = [], []
-      @pubsub_defs = Hash.new { |h,k| h[k] = [] }
+      @pubsub_defs = ArrayHash.new
       super
     end
 
     def connect
-      @sub_callbacks = Hash.new { |h, k| h[k] = [] }
-      @psub_callbacks = Hash.new { |h, k| h[k] = [] }
+      @sub_callbacks = ArrayHash.new
+      @psub_callbacks = ArrayHash.new
       
       # Resubsubscribe to channels on reconnect
       on(:reconnected) {
@@ -30,7 +30,7 @@ module EventMachine::Hiredis
     # 
     def subscribe(channel, proc = nil, &block)
       if cb = proc || block
-        @sub_callbacks[channel] << cb
+        @sub_callbacks.add(channel, cb)
       end
       @subs << channel
       raw_send_command(:subscribe, [channel])
@@ -58,7 +58,7 @@ module EventMachine::Hiredis
     #
     def unsubscribe_proc(channel, proc)
       df = EM::DefaultDeferrable.new
-      if @sub_callbacks[channel].delete(proc)
+      if @sub_callbacks.remove(channel, proc)
         if @sub_callbacks[channel].any?
           # Succeed deferrable immediately - no need to unsubscribe
           df.succeed
@@ -83,7 +83,7 @@ module EventMachine::Hiredis
     #
     def psubscribe(pattern, proc = nil, &block)
       if cb = proc || block
-        @psub_callbacks[pattern] << cb
+        @psub_callbacks.add(pattern, cb)
       end
       @psubs << pattern
       raw_send_command(:psubscribe, [pattern])
@@ -111,7 +111,7 @@ module EventMachine::Hiredis
     #
     def punsubscribe_proc(pattern, proc)
       df = EM::DefaultDeferrable.new
-      if @psub_callbacks[pattern].delete(proc)
+      if @psub_callbacks.remove(pattern, proc)
         if @psub_callbacks[pattern].any?
           # Succeed deferrable immediately - no need to punsubscribe
           df.succeed
@@ -144,7 +144,7 @@ module EventMachine::Hiredis
 
     def pubsub_deferrable(channel)
       df = EM::DefaultDeferrable.new
-      @pubsub_defs[channel].push(df)
+      @pubsub_defs.add(channel, df)
       df
     end
 
@@ -155,26 +155,16 @@ module EventMachine::Hiredis
 
         case kind.to_sym
         when :message
-          if @sub_callbacks.has_key?(subscription)
-            @sub_callbacks[subscription].each { |cb| cb.call(d1) }
-          end
+          @sub_callbacks[subscription].each { |cb| cb.call(d1) }
           # Arguments are channel, message payload
           emit(:message, subscription, d1)
         when :pmessage
-          if @psub_callbacks.has_key?(subscription)
-            @psub_callbacks[subscription].each { |cb| cb.call(d1, d2) }
-          end
+          @psub_callbacks[subscription].each { |cb| cb.call(d1, d2) }
           # Arguments are original pattern, channel, message payload
           emit(:pmessage, subscription, d1, d2)
         else
-          if @pubsub_defs[subscription].any?
-            df = @pubsub_defs[subscription].shift
-            df.succeed(d1)
-            # Cleanup empty arrays
-            if @pubsub_defs[subscription].empty?
-              @pubsub_defs.delete(subscription)
-            end
-          end
+          df = @pubsub_defs.shift(subscription)
+          df.succeed(d1) if df
 
           # Also emit the event, as an alternative to using the deferrables
           emit(kind.to_sym, subscription, d1)

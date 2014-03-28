@@ -58,6 +58,7 @@ module EventMachine
   end
 end
 
+require 'em-hiredis/array_hash'
 require 'em-hiredis/event_emitter'
 require 'em-hiredis/connection'
 require 'em-hiredis/base_client'
