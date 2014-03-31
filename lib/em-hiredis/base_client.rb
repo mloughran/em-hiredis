@@ -146,6 +146,17 @@ module EventMachine::Hiredis
       return self
     end
 
+    # Adds a heartbeat check to the connection. Every +every+ seconds, a ping
+    # is sent to the server. If on the next heartbeat no reply has arrived,
+    # the heartbeat initiates a reconnection to the server.
+    def run_heartbeat(every = 5)
+      if @heartbeat
+        @heartbeat.run_every(every)
+      else
+        @heartbeat = Heartbeat.new(self, every, logger)
+      end
+    end
+
     # Indicates that commands have been sent to redis but a reply has not yet
     # been received
     #
