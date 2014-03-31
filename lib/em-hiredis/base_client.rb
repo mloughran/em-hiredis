@@ -25,6 +25,9 @@ module EventMachine::Hiredis
       @reconnect_timer = nil
       @failed = false
 
+      @reconnect_timeout = EM::Hiredis.reconnect_timeout
+      @logger = EM::Hiredis.logger
+
       self.on(:failed) {
         @failed = true
         @command_queue.each do |df, _, _|
@@ -82,16 +85,16 @@ module EventMachine::Hiredis
             EM.next_tick { reconnect }
           end
           emit(:disconnected)
-          EM::Hiredis.logger.info("#{@connection} Disconnected")
+          logger.info("#{@connection} Disconnected")
         else
           if @auto_reconnect
             @reconnect_failed_count += 1
-            @reconnect_timer = EM.add_timer(EM::Hiredis.reconnect_timeout) {
+            @reconnect_timer = EM.add_timer(@reconnect_timeout) {
               @reconnect_timer = nil
               reconnect
             }
             emit(:reconnect_failed, @reconnect_failed_count)
-            EM::Hiredis.logger.info("#{@connection} Reconnect failed")
+            logger.info("#{@connection} Reconnect failed")
 
             if @reconnect_failed_count >= 4
               emit(:failed)
@@ -116,7 +119,7 @@ module EventMachine::Hiredis
         @command_queue = []
 
         emit(:connected)
-        EM::Hiredis.logger.info("#{@connection} Connected")
+        logger.info("#{@connection} Connected")
         succeed
 
         if @reconnecting
@@ -141,6 +144,17 @@ module EventMachine::Hiredis
       @reconnecting = false
 
       return self
+    end
+
+    # Adds a heartbeat check to the connection. Every +every+ seconds, a ping
+    # is sent to the server. If on the next heartbeat no reply has arrived,
+    # the heartbeat initiates a reconnection to the server.
+    def run_heartbeat(every = 5)
+      if @heartbeat
+        @heartbeat.run_every(every)
+      else
+        @heartbeat = Heartbeat.new(self, every, logger)
+      end
     end
 
     # Indicates that commands have been sent to redis but a reply has not yet
@@ -183,10 +197,12 @@ module EventMachine::Hiredis
 
     private
 
-    def method_missing(sym, *args)
+    attr_reader :logger
+
+    def method_missing(sym, *args, &blk)
       deferred = EM::DefaultDeferrable.new
       # Shortcut for defining the callback case with just a block
-      deferred.callback { |result| yield(result) } if block_given?
+      deferred.callback(&blk) if block_given?
 
       if @connected
         @connection.send_command(sym, args)
@@ -203,7 +219,7 @@ module EventMachine::Hiredis
     def reconnect
       @reconnecting = true
       @connection.reconnect @host, @port
-      EM::Hiredis.logger.info("#{@connection} Reconnecting")
+      logger.info("#{@connection} Reconnecting")
     end
 
     def handle_reply(reply)

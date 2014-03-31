@@ -1,7 +1,7 @@
 module EventMachine::Hiredis
   module EventEmitter
     def on(event, &listener)
-      _listeners[event] << listener
+      _listeners.add(event, listener)
     end
 
     def emit(event, *args)
@@ -9,7 +9,7 @@ module EventMachine::Hiredis
     end
 
     def remove_listener(event, &listener)
-      _listeners[event].delete(listener)
+      _listeners.remove(event, listener)
     end
 
     def remove_all_listeners(event)
@@ -23,7 +23,7 @@ module EventMachine::Hiredis
     private
 
     def _listeners
-      @_listeners ||= Hash.new { |h,k| h[k] = [] }
+      @_listeners ||= ArrayHash.new
     end
   end
 end

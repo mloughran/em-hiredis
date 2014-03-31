@@ -50,7 +50,7 @@ module EventMachine::Hiredis
       method_missing(:monitor, &blk)
     end
 
-    def info
+    def info(&blk)
       df = method_missing(:info)
       df.callback { |response|
         info = {}
@@ -60,7 +60,7 @@ module EventMachine::Hiredis
         end
         df.succeed(info)
       }
-      df.callback { |info| yield info } if block_given?
+      df.callback(&blk) if block_given?
       df
     end
 

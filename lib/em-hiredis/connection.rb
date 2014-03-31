@@ -13,6 +13,7 @@ module EventMachine::Hiredis
     def reconnect(host, port)
       super
       @host, @port = host, port
+      @name = "[em-hiredis #{@host}:#{@port}]"
     end
 
     def connection_completed
@@ -44,13 +45,13 @@ module EventMachine::Hiredis
     COMMAND_DELIMITER = "\r\n"
 
     def command(*args)
-      command = []
-      command << "*#{args.size}"
+      command = Array.new(args.size * 2 + 1)
+      command[0] = "*#{args.size}"
 
-      args.each do |arg|
+      args.each_with_index do |arg, i|
         arg = arg.to_s
-        command << "$#{string_size arg}"
-        command << arg
+        command[i*2+1] = "$#{string_size arg}"
+        command[i*2+2] = arg
       end
 
       command.join(COMMAND_DELIMITER) + COMMAND_DELIMITER
@@ -58,11 +59,11 @@ module EventMachine::Hiredis
 
     if "".respond_to?(:bytesize)
       def string_size(string)
-        string.to_s.bytesize
+        string.bytesize
       end
     else
       def string_size(string)
-        string.to_s.size
+        string.size
       end
     end
   end

@@ -4,7 +4,7 @@ describe EventMachine::Hiredis, "connecting" do
   let(:replies) do
     # shove db number into PING reply since redis has no way
     # of exposing the currently selected DB
-    replies = {
+    {
       :select => lambda { |db| $db = db; "+OK" },
       :ping   => lambda { "+PONG #{$db}" },
       :auth   => lambda { |password| $auth = password; "+OK" },

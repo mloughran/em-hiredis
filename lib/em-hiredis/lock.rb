@@ -18,6 +18,7 @@ module EM::Hiredis
       end
       @redis, @key, @timeout = redis, key, timeout
       @token = SecureRandom.hex
+      @logger = EM::Hiredis.logger
     end
 
     # Acquire the lock
@@ -29,21 +30,21 @@ module EM::Hiredis
       df = EM::DefaultDeferrable.new
       @redis.lock_acquire([@key], [@token, @timeout]).callback { |success|
         if (success)
-          EM::Hiredis.logger.debug "#{to_s} acquired"
+          logger.debug "#{to_s} acquired"
 
           EM.cancel_timer(@expire_timer) if @expire_timer
           @expire_timer = EM.add_timer(@timeout - 1) {
-            EM::Hiredis.logger.debug "#{to_s} Expires in 1s"
+            logger.debug "#{to_s} Expires in 1s"
             @onexpire.call if @onexpire
           }
 
           df.succeed
         else
-          EM::Hiredis.logger.debug "#{to_s} failed to acquire"
+          logger.debug "#{to_s} failed to acquire"
           df.fail("Lock is not available")
         end
       }.errback { |e|
-        EM::Hiredis.logger.error "#{to_s} Error acquiring lock #{e}"
+        logger.error "#{to_s} Error acquiring lock #{e}"
         df.fail(e)
       }
       df
@@ -58,14 +59,14 @@ module EM::Hiredis
       df = EM::DefaultDeferrable.new
       @redis.lock_release([@key], [@token]).callback { |keys_removed|
         if keys_removed > 0
-          EM::Hiredis.logger.debug "#{to_s} released"
+          logger.debug "#{to_s} released"
           df.succeed
         else
-          EM::Hiredis.logger.debug "#{to_s} could not release, not held"
+          logger.debug "#{to_s} could not release, not held"
           df.fail("Cannot release a lock we do not hold")
         end
       }.errback { |e|
-        EM::Hiredis.logger.error "#{to_s} Error releasing lock #{e}"
+        logger.error "#{to_s} Error releasing lock #{e}"
         df.fail(e)
       }
       df
@@ -74,7 +75,7 @@ module EM::Hiredis
     # This should not be used in normal operation.
     # Force clear without regard to who owns the lock.
     def clear
-      EM::Hiredis.logger.warn "#{to_s} Force clearing lock (unsafe)"
+      logger.warn "#{to_s} Force clearing lock (unsafe)"
       EM.cancel_timer(@expire_timer) if @expire_timer
 
       @redis.del(@key)
@@ -83,6 +84,10 @@ module EM::Hiredis
     def to_s
       "[lock #{@key}]"
     end
+
+    protected
+
+    attr_reader :logger
 
   end
 end
