@@ -25,6 +25,8 @@ module EventMachine::Hiredis
       @reconnect_timer = nil
       @failed = false
 
+      @inactive_seconds = 0
+
       self.on(:failed) {
         @failed = true
         @command_queue.each do |df, _, _|
@@ -72,6 +74,7 @@ module EventMachine::Hiredis
       @connection = EM.connect(@host, @port, Connection, @host, @port)
 
       @connection.on(:closed) do
+        cancel_inactivity_checks
         if @connected
           @defs.each { |d| d.fail(Error.new("Redis disconnected")) }
           @defs = []
@@ -115,6 +118,8 @@ module EventMachine::Hiredis
         end
         @command_queue = []
 
+        schedule_inactivity_checks
+
         emit(:connected)
         EM::Hiredis.logger.info("#{@connection} Connected")
         succeed
@@ -133,6 +138,7 @@ module EventMachine::Hiredis
           error.redis_error = reply
           deferred.fail(error) if deferred
         else
+          @inactive_seconds = 0
           handle_reply(reply)
         end
       end
@@ -181,6 +187,21 @@ module EventMachine::Hiredis
       reconnect
     end
 
+    # Starts an inactivity checker which will ping redis if nothing has been
+    # heard on the connection for `trigger_secs` seconds and forces a reconnect
+    # after a further `response_timeout` seconds if we still don't hear anything.
+    def configure_inactivity_check(trigger_secs, response_timeout)
+      raise ArgumentError('trigger_secs must be > 0') unless trigger_secs > 0
+      raise ArgumentError('response_timeout must be > 0') unless response_timeout > 0
+
+      @inactivity_trigger_secs = trigger_secs
+      @inactivity_response_timeout = response_timeout
+
+      # Start the inactivity check now only if we're already conected, otherwise
+      # the connected event will schedule it.
+      schedule_inactivity_checks if @connected
+    end
+
     private
 
     def method_missing(sym, *args)
@@ -204,6 +225,27 @@ module EventMachine::Hiredis
       @reconnecting = true
       @connection.reconnect @host, @port
       EM::Hiredis.logger.info("#{@connection} Reconnecting")
+    end
+
+    def cancel_inactivity_checks
+      EM.cancel_timer(@inactivity_timer) if @inactivity_timer
+      @inactivity_timer = nil
+    end
+
+    def schedule_inactivity_checks
+      if @inactivity_trigger_secs
+        @inactive_seconds = 0
+        @inactivity_timer = EM.add_periodic_timer(1) {
+          @inactive_seconds += 1
+          if @inactive_seconds > @inactivity_trigger_secs + @inactivity_response_timeout
+            EM::Hiredis.logger.error "#{@connection} No response to ping, triggering reconnect"
+            reconnect!
+          elsif @inactive_seconds > @inactivity_trigger_secs
+            EM::Hiredis.logger.debug "#{@connection} Connection inactive, triggering ping"
+            ping
+          end
+        }
+      end
     end
 
     def handle_reply(reply)
