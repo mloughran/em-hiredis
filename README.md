@@ -67,7 +67,7 @@ The regular `EM::Hiredis::Client` no longer understands pubsub messages - this l
 
 Pubsub can either be used in em-hiredis in a close-to-the-metal fashion, or you can use the convenience functionality for binding blocks to subscriptions if you prefer (recommended).
 
-### Close to the metal
+### Close to the metal pubsub interface
 
 Basically just bind to `:message` and `:pmessage` events:
 
@@ -92,7 +92,7 @@ Basically just bind to `:message` and `:pmessage` events:
       }
     }
 
-### Richer interface to pubsub
+### Richer pubsub interface
 
 If you pass a block to `subscribe` or `psubscribe`, the passed block will be called whenever a message arrives on that subscription:
 
@@ -118,19 +118,17 @@ If you pass a block to `subscribe` or `psubscribe`, the passed block will be cal
 
 It's possible to subscribe to the same channel multiple time and just unsubscribe a single callback using `unsubscribe_proc` or `punsubscribe_proc`.
 
+
+
+
 ## Developing
 
-Hacking on em-hiredis is pretty simple, make sure you have Bundler installed:
-
-    gem install bundler
-    bundle
-
-In order to run the tests you need to have a local redis server running on port 6379. Run all the tests:
+You need bundler and a local redis server running on port 6379 to run the test suite.
 
     # WARNING: The tests call flushdb on db 9 - this clears all keys!
-    bundle exec rake 
+    bundle exec rake
 
-To run an individual test:
+Run an individual spec:
 
     bundle exec rspec spec/redis_commands_spec.rb
 
