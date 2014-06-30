@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 (2014-06-30)
+
+[NEW] Lua script support (see README for details).
+
+[NEW] `Client#reconnect!` method which disconnects, reconfigures, and reconnects.
+
+[CHANGED] Locking abstraction re-implemented using lua (safer and simpler) [mdpye].
+
+[CHANGED] Hiredis dependency updated to 0.5.x
+
 ## 0.2.1 (2013-04-22)
 
 [NEW] Support for connecting to redis on a unix socket.
