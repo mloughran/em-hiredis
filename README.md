@@ -118,8 +118,34 @@ If you pass a block to `subscribe` or `psubscribe`, the passed block will be cal
 
 It's possible to subscribe to the same channel multiple time and just unsubscribe a single callback using `unsubscribe_proc` or `punsubscribe_proc`.
 
+## Lua
 
+You can of course call EVAL or EVALSHA directly; the following is a higher-level API.
 
+Registering a named command on a redis client defines a ruby method with the given name on the client:
+
+    redis.register_script(:multiply, <<-END)
+      return redis.call('get', KEYS[1]) * ARGV[1]
+    END
+
+The method can be called in a very similar way to any other redis command; the only difference is that the first argument must be an array of keys, and the second (optional) an array of values.
+
+    # Multiplies the value at key foo by 2
+    redis.multiply(['foo'], [2]).callback { ... }
+
+Lua commands are submitted to redis using EVALSHA for efficiency. If redis replies with a NOSCRIPT error, the command is automatically re-submitted with EVAL; this is totally transparent to your code and the intermediate 'failure' will not be passed to your errback.
+
+You may register scripts globally, in which case they will be available to all clients:
+
+    EM::Hiredis::Client.register_script(:multiply, <<-END)
+      return redis.call('get', KEYS[1]) * ARGV[1]
+    END
+
+As a final convenience, it is possible to load all lua scripts from a directory automatically. All `.lua` files in the directory will be registered, and named according to filename (so a file called `sum.lua` becomes available as `redis.sum(...)`).
+
+    EM::Hiredis::Client.load_scripts_from('./lua_scripts')
+
+For examples see `examples/lua.rb` or `lib/em-hiredis/lock_lua`.
 
 ## Developing
 
