@@ -147,6 +147,23 @@ As a final convenience, it is possible to load all lua scripts from a directory 
 
 For examples see `examples/lua.rb` or `lib/em-hiredis/lock_lua`.
 
+## Inactivity checks
+
+Sometimes a network connection may hang in ways which are difficult to detect or involve very long timeouts before they can be detected from the application layer. This is especially true of Redis Pubsub connections, as they are not request-response driven. It is very difficult for a listening client to descern between a hung connection and a server with nothing to say.
+
+To start an application layer ping-pong mechanism for testing connection liveness, call the following at any time on a client:
+
+    redis.configure_inactivity_timeout(5, 3)
+
+This configures a `PING` command to be sent if 5 seconds elapse without receiving any data from the server, and a reconnection to be triggered if a futher 3 seconds elapse after the `PING` is submitted.
+
+This configuration is per client, you may choose different value for clients with different expected traffic patterns, or activate it on some and not at all on others.
+
+### PING and Pubsub
+
+Because the Redis Pubsub protocol limits the set of valid commands on a connection once it is in "Pubsub" mode, `PING` is not supported in this case (though it may be in future, see https://github.com/antirez/redis/issues/420). In order to create some valid request-response traffic on the connection, a Pubsub connection will issue `SUBSCRIBE "__em-hiredis-ping"`, followed by a corresponding `UNSUBSCRIBE` immediately on success of the subscribe.
+While less than ideal, this is the case where an application layer inactivity check is most valuable, and so the trade off is reasonable until `PING` is supported correctly on Pubsub connections.
+
 ## Developing
 
 You need bundler and a local redis server running on port 6379 to run the test suite.

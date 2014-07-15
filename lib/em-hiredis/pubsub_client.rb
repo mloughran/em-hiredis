@@ -2,6 +2,8 @@ module EventMachine::Hiredis
   class PubsubClient < BaseClient
     PUBSUB_MESSAGES = %w{message pmessage subscribe unsubscribe psubscribe punsubscribe}.freeze
 
+    PING_CHANNEL = '__em-hiredis-ping'
+
     def initialize(host='localhost', port='6379', password=nil, db=nil)
       @subs, @psubs = [], []
       @pubsub_defs = Hash.new { |h,k| h[k] = [] }
@@ -125,7 +127,20 @@ module EventMachine::Hiredis
       end
       return df
     end
-    
+
+    # Pubsub connections to not support even the PING command, but it is useful,
+    # especially with read-only connections like pubsub, to be able to check that
+    # the TCP connection is still usefully alive.
+    #
+    # This is not particularly elegant, but it's probably the best we can do
+    # for now. Ping support for pubsub connections is being considerred:
+    # https://github.com/antirez/redis/issues/420
+    def ping
+      subscribe(PING_CHANNEL).callback {
+        unsubscribe(PING_CHANNEL)
+      }
+    end
+
     private
     
     # Send a command to redis without adding a deferrable for it. This is
