@@ -68,12 +68,12 @@ module IRedisMock
           reply = "+OK"
         end
 
-        p "[#{command_line}] => [#{reply}]"
+        # p "[#{command_line}] => [#{reply}]"
 
         IRedisMock.received << command_line
 
         if IRedisMock.paused
-          puts "Paused, therefore not sending [#{reply}]"
+          # puts "Paused, therefore not sending [#{reply}]"
         else
           send_data "#{reply}\r\n"
         end
