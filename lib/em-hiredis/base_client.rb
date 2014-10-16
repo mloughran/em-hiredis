@@ -73,7 +73,7 @@ module EventMachine::Hiredis
       @auto_reconnect = true
       @connection = EM.connect(@host, @port, Connection, @host, @port)
 
-      @connection.on(:closed) { handle_disconnect }
+      @connection.on(:closed, &method(:handle_disconnect))
 
       @connection.on(:connected) do
         @connected = true
