@@ -58,8 +58,8 @@ module EM::Hiredis
       df = EM::DefaultDeferrable.new
       @redis.lock_release([@key], [@token]).callback { |keys_removed|
         # DEBUGGING WTF
-        if keys_removed.is_a? String
-          EM::Hiredis.logger.error "#{to_s}: Received String where expected int [#{keys_removed}]"
+        if !keys_removed.is_a?(Fixnum)
+          EM::Hiredis.logger.error "#{to_s}: Received String where expected int [#{keys_removed.inspect}]"
           df.fail("WTF")
         elsif keys_removed > 0
           EM::Hiredis.logger.debug "#{to_s} released"
