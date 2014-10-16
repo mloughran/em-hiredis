@@ -73,36 +73,7 @@ module EventMachine::Hiredis
       @auto_reconnect = true
       @connection = EM.connect(@host, @port, Connection, @host, @port)
 
-      @connection.on(:closed) do
-        cancel_inactivity_checks
-        if @connected
-          @defs.each { |d| d.fail(Error.new("Redis disconnected")) }
-          @defs = []
-          @deferred_status = nil
-          @connected = false
-          if @auto_reconnect
-            # Next tick avoids reconnecting after for example EM.stop
-            EM.next_tick { reconnect }
-          end
-          emit(:disconnected)
-          EM::Hiredis.logger.info("#{@connection} Disconnected")
-        else
-          if @auto_reconnect
-            @reconnect_failed_count += 1
-            @reconnect_timer = EM.add_timer(EM::Hiredis.reconnect_timeout) {
-              @reconnect_timer = nil
-              reconnect
-            }
-            emit(:reconnect_failed, @reconnect_failed_count)
-            EM::Hiredis.logger.info("#{@connection} Reconnect failed")
-
-            if @reconnect_failed_count >= 4
-              emit(:failed)
-              self.fail(Error.new("Could not connect after 4 attempts"))
-            end
-          end
-        end
-      end
+      @connection.on(:closed, &method(:handle_disconnect))
 
       @connection.on(:connected) do
         @connected = true
@@ -223,8 +194,13 @@ module EventMachine::Hiredis
 
     def reconnect
       @reconnecting = true
-      @connection.reconnect @host, @port
       EM::Hiredis.logger.info("#{@connection} Reconnecting")
+      begin
+        @connection.reconnect @host, @port
+      rescue EventMachine::ConnectionError => e
+        EM::Hiredis.logger.error("Error during connect: #{e.to_s}")
+        EM.next_tick { handle_disconnect }
+      end
     end
 
     def cancel_inactivity_checks
@@ -258,6 +234,37 @@ module EventMachine::Hiredis
       else
         deferred = @defs.shift
         deferred.succeed(reply) if deferred
+      end
+    end
+
+    def handle_disconnect
+      cancel_inactivity_checks
+      if @connected
+        @defs.each { |d| d.fail(Error.new("Redis disconnected")) }
+        @defs = []
+        @deferred_status = nil
+        @connected = false
+        if @auto_reconnect
+          # Next tick avoids reconnecting after for example EM.stop
+          EM.next_tick { reconnect }
+        end
+        emit(:disconnected)
+        EM::Hiredis.logger.info("#{@connection} Disconnected")
+      else
+        if @auto_reconnect
+          @reconnect_failed_count += 1
+          @reconnect_timer = EM.add_timer(EM::Hiredis.reconnect_timeout) {
+            @reconnect_timer = nil
+            reconnect
+          }
+          emit(:reconnect_failed, @reconnect_failed_count)
+          EM::Hiredis.logger.info("#{@connection} Reconnect failed")
+
+          if @reconnect_failed_count >= 4
+            emit(:failed)
+            self.fail(Error.new("Could not connect after 4 attempts"))
+          end
+        end
       end
     end
   end
