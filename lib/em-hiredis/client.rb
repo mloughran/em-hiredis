@@ -8,11 +8,24 @@ module EventMachine::Hiredis
 
     def self.load_scripts_from(dir)
       Dir.glob("#{dir}/*.lua").each do |f|
-        name = Regexp.new(/([^\/]*)\.lua$/).match(f)[1]
-        lua = File.open(f, 'r').read
+        name = File.basename(f, '.lua')
+        lua = load_script(f)
         EM::Hiredis.logger.debug { "Registering script: #{name}" }
         EM::Hiredis::Client.register_script(name, lua)
       end
+    end
+
+    def self.load_script(file)
+      script_text = File.open(file, 'r').read
+
+      inc_path = File.dirname(file)
+      while (m = /^-- #include (.*)$/.match(script_text))
+        inc_file = m[1]
+        inc_body = File.read("#{inc_path}/#{inc_file}")
+        to_replace = Regexp.new("^-- #include #{inc_file}$")
+        script_text = script_text.gsub(to_replace, "#{inc_body}\n")
+      end
+      script_text
     end
 
     def self.register_script(name, lua)
