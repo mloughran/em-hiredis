@@ -135,6 +135,25 @@ If you pass a block to `subscribe` or `psubscribe`, the passed block will be cal
 
 It's possible to subscribe to the same channel multiple time and just unsubscribe a single callback using `unsubscribe_proc` or `punsubscribe_proc`.
 
+## Lua scripting
+
+When loading scripts from a directory with `EventMachine::Hiredis::Client.load_scripts_from`, the scripts loaded undergo very simple preprocessing, replacing any occurrence of an "include directive" literally with the contents of the referenced file before sending the script to redis.
+
+```
+-- #include file/name.lua
+```
+
+The filename is expressed relative to the directory of scripts being loaded.
+
+### Recommendations for library code
+
+The implementation is extremely simple, so some sensible recommendations are:
+
+- Put library code in a subdirectory, or using an extension other than `.lua`, to prevent library scripts being loaded as their own commands.
+- Declare only "classes" into the top level scope in library code, and preferably only one per script with the classname matching the script name, to minimise possible naming collisions
+- Attach free function implementations to members of a declared class as a namespace.
+- Remember while developing that line numbers reported back from redis will be offset
+
 ## Developing
 
 Hacking on em-hiredis is pretty simple, make sure you have Bundler installed:
