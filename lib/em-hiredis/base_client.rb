@@ -76,28 +76,16 @@ module EventMachine::Hiredis
       @connection.on(:closed, &method(:handle_disconnect))
 
       @connection.on(:connected) do
-        @connected = true
-        @reconnect_failed_count = 0
-        @failed = false
-
-        select(@db) unless @db == 0
-        auth(@password) if @password
-
-        @command_queue.each do |df, command, args|
-          @connection.send_command(command, args)
-          @defs.push(df)
-        end
-        @command_queue = []
-
-        schedule_inactivity_checks
-
-        emit(:connected)
-        EM::Hiredis.logger.info("#{@connection} Connected")
-        succeed
-
-        if @reconnecting
-          @reconnecting = false
-          emit(:reconnected)
+        if @db != 0
+          df = EM::DefaultDeferrable.new
+          send_command(df, :select, @db)
+          df.callback {
+            handle_connected
+          }.errback {
+            handle_disconnect
+          }
+        else
+          handle_connected
         end
       end
 
@@ -175,14 +163,18 @@ module EventMachine::Hiredis
 
     private
 
+    def send_command(df, sym, *args)
+      @connection.send_command(sym, args)
+      @defs.push(df)
+    end
+
     def method_missing(sym, *args)
       deferred = EM::DefaultDeferrable.new
       # Shortcut for defining the callback case with just a block
       deferred.callback { |result| yield(result) } if block_given?
 
       if @connected
-        @connection.send_command(sym, args)
-        @defs.push(deferred)
+        send_command(deferred, sym, *args)
       elsif @failed
         deferred.fail(Error.new("Redis connection in failed state"))
       else
@@ -237,6 +229,30 @@ module EventMachine::Hiredis
       end
     end
 
+    def handle_connected
+      @connected = true
+      @reconnect_failed_count = 0
+      @failed = false
+
+      auth(@password) if @password
+
+      @command_queue.each do |df, command, args|
+        send_command(df, command, *args)
+      end
+      @command_queue = []
+
+      schedule_inactivity_checks
+
+      emit(:connected)
+      EM::Hiredis.logger.info("#{@connection} Connected")
+      succeed
+
+      if @reconnecting
+        @reconnecting = false
+        emit(:reconnected)
+      end
+    end
+
     def handle_disconnect
       cancel_inactivity_checks
       if @connected
@@ -246,7 +262,7 @@ module EventMachine::Hiredis
         @connected = false
         if @auto_reconnect
           # Next tick avoids reconnecting after for example EM.stop
-          EM.next_tick { reconnect }
+          EM.next_tick { reconnect! }
         end
         emit(:disconnected)
         EM::Hiredis.logger.info("#{@connection} Disconnected")
@@ -255,7 +271,7 @@ module EventMachine::Hiredis
           @reconnect_failed_count += 1
           @reconnect_timer = EM.add_timer(EM::Hiredis.reconnect_timeout) {
             @reconnect_timer = nil
-            reconnect
+            reconnect!
           }
           emit(:reconnect_failed, @reconnect_failed_count)
           EM::Hiredis.logger.info("#{@connection} Reconnect failed")
