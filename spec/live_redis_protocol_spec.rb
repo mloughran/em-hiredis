@@ -518,7 +518,7 @@ describe EventMachine::Hiredis, "when closing_connection" do
       redis.on(:connected) {
         op = redis.blpop 'empty_list'
         op.callback { fail }
-        op.errback { EM.stop }
+        op.errback { done }
 
         redis.close_connection
       }
@@ -530,10 +530,14 @@ end
 describe EventMachine::Hiredis, "when redis is blocked by a lua script" do
   it "should select the correct db" do
     script = <<-EOF
-      local t0 = tonumber(redis.call("time")[1])
-      while tonumber(redis.call("time")[1]) < t0 + 1 do
-        local a = 1
+      local to_micro = function(t)
+        return tonumber(t[1])*1000000 + tonumber(t[2])
       end
+      local t0 = to_micro(redis.call("time"))
+      local tnow = t0
+      repeat
+        tnow = to_micro(redis.call("time"))
+      until tnow - t0 >= 1000000
     EOF
 
     # set reconnect timeout to a higher value to avoid too many reconnections
