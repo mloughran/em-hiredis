@@ -42,10 +42,12 @@ describe EM::Hiredis::BaseClient do
 
   it "should emit disconnected when the connection closes" do
     connect do |redis|
-      redis.on(:disconnected) {
-        done
+      redis.on(:connected) {
+        redis.on(:disconnected) {
+          done
+        }
+        redis.close_connection
       }
-      redis.close_connection
     end
   end
 

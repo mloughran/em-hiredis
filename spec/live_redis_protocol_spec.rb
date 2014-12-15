@@ -515,13 +515,62 @@ describe EventMachine::Hiredis, "when closing_connection" do
   it "should fail deferred commands" do
     errored = false
     connect do |redis|
-      op = redis.blpop 'empty_list'
-      op.callback { fail }
-      op.errback { EM.stop }
-      
-      redis.close_connection
-      
+      redis.on(:connected) {
+        op = redis.blpop 'empty_list'
+        op.callback { fail }
+        op.errback { done }
+
+        redis.close_connection
+      }
       EM.add_timer(1) { fail }
+    end
+  end
+end
+
+describe EventMachine::Hiredis, "when redis is blocked by a lua script" do
+  it "should select the correct db" do
+    script = <<-EOF
+      local to_micro = function(t)
+        return tonumber(t[1])*1000000 + tonumber(t[2])
+      end
+      local t0 = to_micro(redis.call("time"))
+      local tnow = t0
+      repeat
+        tnow = to_micro(redis.call("time"))
+      until tnow - t0 >= 1000000
+    EOF
+
+    # set reconnect timeout to a higher value to avoid too many reconnections
+    reconnect_timeout = EM::Hiredis.reconnect_timeout
+    EM::Hiredis.reconnect_timeout = 0.5
+
+    connect(9) do |redis1|
+      timeout(2)
+
+      redis1.config("get", "lua-time-limit").callback { |original_limit|
+        redis1.config("set", "lua-time-limit", 500).callback {
+          redis1.eval(script, 0) # run the script, it should take a second
+          EM.add_timer(0.1) { # wait for the script to start running
+            connect(9) do |redis2|
+              redis2.set("test", "545").callback {
+                redis2.select(0)
+                redis2.get("test").callback { |test_value0|
+                  test_value0.should be_nil
+                }
+                redis2.select(9)
+                redis2.get("test").callback { |test_value9|
+                  test_value9.should == "545"
+                  EM::Hiredis.reconnect_timeout = reconnect_timeout
+                  redis1.config("set", "lua-time-limit", original_limit)
+                  done
+                }
+              }.errback { |e|
+                fail e
+              }
+            end
+          }
+        }
+      }
     end
   end
 end
