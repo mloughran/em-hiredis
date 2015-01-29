@@ -103,7 +103,7 @@ If you pass a block to `subscribe` or `psubscribe`, the passed block will be cal
       p [:sub1, msg]
     }
 
-    redis.pubsub_client.psubscribe("f*") { |msg|
+    redis.pubsub_client.psubscribe("f*") { |channel, msg|
       p [:sub2, msg]
     }
 
