@@ -73,7 +73,7 @@ Basically just bind to `:message` and `:pmessage` events:
 
     # Create two connections, one will be used for subscribing
     redis = EM::Hiredis.connect
-    pubsub = redis.pubsub
+    pubsub = redis.pubsub_client
 
     pubsub.subscribe('bar.0').callback { puts "Subscribed" }
     pubsub.psubscribe('bar.*')
@@ -99,11 +99,11 @@ If you pass a block to `subscribe` or `psubscribe`, the passed block will be cal
     redis = EM::Hiredis.connect
 
     puts "Subscribing"
-    redis.pubsub.subscribe("foo") { |msg|
+    redis.pubsub_client.subscribe("foo") { |msg|
       p [:sub1, msg]
     }
 
-    redis.pubsub.psubscribe("f*") { |msg|
+    redis.pubsub_client.psubscribe("f*") { |msg|
       p [:sub2, msg]
     }
 
@@ -113,7 +113,7 @@ If you pass a block to `subscribe` or `psubscribe`, the passed block will be cal
 
     EM.add_timer(5) {
       puts "Unsubscribing sub1"
-      redis.pubsub.unsubscribe("foo")
+      redis.pubsub_client.unsubscribe("foo")
     }
 
 It's possible to subscribe to the same channel multiple time and just unsubscribe a single callback using `unsubscribe_proc` or `punsubscribe_proc`.
