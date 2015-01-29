@@ -85,7 +85,7 @@ module EventMachine::Hiredis
     # Gives access to a richer interface for pubsub subscriptions on a
     # separate redis connection
     #
-    def pubsub
+    def pubsub_client
       @pubsub ||= begin
         PubsubClient.new(@host, @port, @password, @db).connect
       end
