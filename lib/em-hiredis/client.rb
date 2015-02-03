@@ -64,6 +64,33 @@ module EventMachine::Hiredis
       df
     end
 
+    def ensure_script(script_name)
+      df = EM::DefaultDeferrable.new
+      method_missing(
+        :script,
+        'exists',
+        self.send("#{script_name}_sha".to_sym)
+      ).callback { |ret|
+        # ret is an array of 0 or 1s representing existence for each script arg passed
+        if ret[0] == 0
+          method_missing(
+            :script,
+            'load',
+            self.send("#{script_name}_script".to_sym)
+          ).callback {
+            df.succeed
+          }.errback { |e|
+            df.fail(e)
+          }
+        else
+          df.succeed
+        end
+      }.errback { |e|
+        df.fail(e)
+      }
+      df
+    end
+
     def monitor(&blk)
       @monitoring = true
       method_missing(:monitor, &blk)
