@@ -33,6 +33,12 @@ module EventMachine::Hiredis
       self.send(:define_method, name.to_sym) { |keys, args=[]|
         eval_script(lua, sha, keys, args)
       }
+      self.send(:define_method, "#{name}_script".to_sym) {
+        lua
+      }
+      self.send(:define_method, "#{name}_sha".to_sym) {
+        sha
+      }
     end
 
     def register_script(name, lua)
