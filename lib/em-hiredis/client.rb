@@ -33,6 +33,12 @@ module EventMachine::Hiredis
       self.send(:define_method, name.to_sym) { |keys, args=[]|
         eval_script(lua, sha, keys, args)
       }
+      self.send(:define_method, "#{name}_script".to_sym) {
+        lua
+      }
+      self.send(:define_method, "#{name}_sha".to_sym) {
+        sha
+      }
     end
 
     def register_script(name, lua)
@@ -54,6 +60,33 @@ module EventMachine::Hiredis
         else
           df.fail(e)
         end
+      }
+      df
+    end
+
+    def ensure_script(script_name)
+      df = EM::DefaultDeferrable.new
+      method_missing(
+        :script,
+        'exists',
+        self.send("#{script_name}_sha".to_sym)
+      ).callback { |ret|
+        # ret is an array of 0 or 1s representing existence for each script arg passed
+        if ret[0] == 0
+          method_missing(
+            :script,
+            'load',
+            self.send("#{script_name}_script".to_sym)
+          ).callback {
+            df.succeed
+          }.errback { |e|
+            df.fail(e)
+          }
+        else
+          df.succeed
+        end
+      }.errback { |e|
+        df.fail(e)
       }
       df
     end
