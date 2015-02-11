@@ -496,7 +496,9 @@ describe EventMachine::Hiredis, "when reconnecting" do
   it "select previously selected dataset" do
     connect(3) do |redis|
       #simulate disconnect
-      redis.set('foo', 'a') { redis.close_connection_after_writing }
+      redis.set('foo', 'a') {
+        redis.instance_variable_get(:@connection_manager).connection.close_connection_after_writing
+      }
 
       EventMachine.add_timer(2) do
         redis.get('foo') do |r|
@@ -515,12 +517,12 @@ describe EventMachine::Hiredis, "when closing_connection" do
   it "should fail deferred commands" do
     errored = false
     connect do |redis|
-      redis.on(:connected) {
+      redis.callback {
         op = redis.blpop 'empty_list'
         op.callback { fail }
         op.errback { done }
 
-        redis.close_connection
+        redis.instance_variable_get(:@connection_manager).connection.close_connection
       }
       EM.add_timer(1) { fail }
     end

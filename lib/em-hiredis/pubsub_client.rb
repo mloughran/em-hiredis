@@ -1,201 +1,274 @@
+require 'uri'
+
 module EventMachine::Hiredis
-  class PubsubClient < BaseClient
-    PUBSUB_MESSAGES = %w{message pmessage subscribe unsubscribe psubscribe punsubscribe}.freeze
+  # Emits the following events:
+  #
+  # Life cycle events:
+  # - :connected - on successful connection or reconnection
+  # - :reconnected - on successful reconnection
+  # - :disconnected - no longer connected, when previously in connected state
+  # - :reconnect_failed(failure_number) - a reconnect attempt failed
+  #     This event is passed number of failures so far (1,2,3...)
+  # - :failed - on failing the final reconnect attempt
+  #
+  # Subscription events:
+  # - :message(channel, message) - on receiving message on channel which has an active subscription
+  # - :pmessage(pattern, channel, message) - on receiving message on channel which has an active subscription due to pattern
+  # - :subscribe(channel) - on confirmation of subscription to channel
+  # - :psubscribe(pattern) - on confirmation of subscription to pattern
+  # - :unsubscribe(channel) - on confirmation of unsubscription from channel
+  # - :punsubscribe(pattern) - on confirmation of unsubscription from pattern
+  #
+  # Note that :subscribe and :psubscribe will be emitted after a reconnection for
+  # all subscriptions which were active at the time the connection was lost.
+  class PubsubClient
+    include EventEmitter
+    include EventMachine::Deferrable
 
-    PING_CHANNEL = '__em-hiredis-ping'
+    attr_reader :host, :port, :password
 
-    def initialize(host='localhost', port='6379', password=nil, db=nil)
-      @subs, @psubs = [], []
-      @pubsub_defs = Hash.new { |h,k| h[k] = [] }
-      super
+    # uri:
+    #   the redis server to connect to, redis://[:password@]host[:port][/db]
+    # inactivity_trigger_secs:
+    #   the number of seconds of inactivity before triggering a ping to the server
+    # inactivity_response_timeout:
+    #   the number of seconds after a ping at which to terminate the connection
+    #   if there is still no activity
+    def initialize(
+        uri,
+        inactivity_trigger_secs = nil,
+        inactivity_response_timeout = nil,
+        em = EventMachine)
+
+      @em = em
+      configure(uri)
+
+      @inactivity_trigger_secs = inactivity_trigger_secs
+      @inactivity_response_timeout = inactivity_response_timeout
+
+      # Subscribed channels and patterns to their callbacks
+      # nil is a valid "callback", required because even if the user is using
+      # emitted events rather than callbacks to consume their messages, we still
+      # need to mark the fact that we are subscribed.
+      @subscriptions = Hash.new { |h, k| h[k] = [] }
+      @psubscriptions = Hash.new { |h, k| h[k] = [] }
+
+      @connection_manager = ConnectionManager.new(method(:factory_connection), em)
+
+      @connection_manager.on(:connected) {
+        EM::Hiredis.logger.info("#{@name} - Connected")
+        emit(:connected)
+        set_deferred_status(:succeeded)
+      }
+
+      @connection_manager.on(:disconnected) {
+        EM::Hiredis.logger.info("#{@name} - Disconnected")
+        emit(:disconnected)
+      }
+      @connection_manager.on(:reconnected) {
+        EM::Hiredis.logger.info("#{@name} - Reconnected")
+        emit(:reconnected)
+      }
+      @connection_manager.on(:reconnect_failed) { |count|
+        EM::Hiredis.logger.warn("#{@name} - Reconnect failed, attempt #{count}")
+        emit(:reconnect_failed, count)
+      }
+
+      @connection_manager.on(:failed) {
+        EM::Hiredis.logger.error("#{@name} - Connection failed")
+        emit(:failed)
+        set_deferred_status(:failed, Error.new('Could not connect after 4 attempts'))
+      }
     end
 
+    # Connect to the configured redis server. Returns a deferrable which
+    # completes upon successful connections or fails after all reconnect attempts
+    # are exhausted.
+    #
+    # Commands may be issued before or during connection, they will be queued
+    # and submitted to the server once the connection is active.
     def connect
-      @sub_callbacks = Hash.new { |h, k| h[k] = [] }
-      @psub_callbacks = Hash.new { |h, k| h[k] = [] }
-      
-      # Resubsubscribe to channels on reconnect
-      on(:reconnected) {
-        raw_send_command(:subscribe, @subs) if @subs.any?
-        raw_send_command(:psubscribe, @psubs) if @psubs.any?
-      }
-      
-      super
+      @connection_manager.connect
+      return self
     end
-    
-    # Subscribe to a pubsub channel
-    # 
-    # If an optional proc / block is provided then it will be called when a
-    # message is received on this channel
-    # 
-    # @return [Deferrable] Redis subscribe call
-    # 
-    def subscribe(channel, proc = nil, &block)
-      if cb = proc || block
-        @sub_callbacks[channel] << cb
-      end
-      @subs << channel
-      raw_send_command(:subscribe, [channel])
-      return pubsub_deferrable(channel)
+
+    # Reconnect, either:
+    #  - because the client has reached a failed state, but you believe the
+    #    underlying problem to be resolved
+    #  - with an optional different uri, because you wish to tear down the
+    #    connection and connect to a different redis server, perhaps as part of
+    #    a failover
+    def reconnect(uri = nil)
+      configure(uri) if uri
+      @connection_manager.reconnect
     end
-    
-    # Unsubscribe all callbacks for a given channel
-    #
-    # @return [Deferrable] Redis unsubscribe call
-    #
+
+    # Terminate the client permanently
+    def close
+      @connection_manager.close
+    end
+
+    ## Exposed state
+
+    def pending_commands
+      @connection_manager.pending_commands
+    end
+
+    def pending_commands?
+      return pending_commands > 0
+    end
+
+    ## Commands
+
+    def subscribe(channel, proc = nil, &blk)
+      cb = proc || blk
+      subscribe_impl(:subscribe, @subscriptions, channel, cb)
+    end
+
+    def psubscribe(pattern, proc = nil, &blk)
+      cb = proc || blk
+      subscribe_impl(:psubscribe, @psubscriptions, pattern, cb)
+    end
+
     def unsubscribe(channel)
-      @sub_callbacks.delete(channel)
-      @subs.delete(channel)
-      raw_send_command(:unsubscribe, [channel])
-      return pubsub_deferrable(channel)
+      unsubscribe_impl(:unsubscribe, @subscriptions, channel)
     end
 
-    # Unsubscribe a given callback from a channel. Will unsubscribe from redis
-    # if there are no remaining subscriptions on this channel
-    #
-    # @return [Deferrable] Succeeds when the unsubscribe has completed or
-    #   fails if callback could not be found. Note that success may happen
-    #   immediately in the case that there are other callbacks for the same
-    #   channel (and therefore no unsubscription from redis is necessary)
-    #
-    def unsubscribe_proc(channel, proc)
-      df = EM::DefaultDeferrable.new
-      if @sub_callbacks[channel].delete(proc)
-        if @sub_callbacks[channel].any?
-          # Succeed deferrable immediately - no need to unsubscribe
-          df.succeed
-        else
-          unsubscribe(channel).callback { |_|
-            df.succeed
-          }
-        end
-      else
-        df.fail
-      end
-      return df
-    end
-
-    # Pattern subscribe to a pubsub channel
-    #
-    # If an optional proc / block is provided then it will be called (with the
-    # channel name and message) when a message is received on a matching
-    # channel
-    #
-    # @return [Deferrable] Redis psubscribe call
-    #
-    def psubscribe(pattern, proc = nil, &block)
-      if cb = proc || block
-        @psub_callbacks[pattern] << cb
-      end
-      @psubs << pattern
-      raw_send_command(:psubscribe, [pattern])
-      return pubsub_deferrable(pattern)
-    end
-
-    # Pattern unsubscribe all callbacks for a given pattern
-    #
-    # @return [Deferrable] Redis punsubscribe call
-    #
     def punsubscribe(pattern)
-      @psub_callbacks.delete(pattern)
-      @psubs.delete(pattern)
-      raw_send_command(:punsubscribe, [pattern])
-      return pubsub_deferrable(pattern)
+      unsubscribe_impl(:punsubscribe, @psubscriptions, pattern)
     end
 
-    # Unsubscribe a given callback from a pattern. Will unsubscribe from redis
-    # if there are no remaining subscriptions on this pattern
-    #
-    # @return [Deferrable] Succeeds when the punsubscribe has completed or
-    #   fails if callback could not be found. Note that success may happen
-    #   immediately in the case that there are other callbacks for the same
-    #   pattern (and therefore no punsubscription from redis is necessary)
-    #
+    def unsubscribe_proc(channel, proc)
+      unsubscribe_proc_impl(:unsubscribe, @subscriptions, channel, proc)
+    end
+
     def punsubscribe_proc(pattern, proc)
-      df = EM::DefaultDeferrable.new
-      if @psub_callbacks[pattern].delete(proc)
-        if @psub_callbacks[pattern].any?
-          # Succeed deferrable immediately - no need to punsubscribe
-          df.succeed
-        else
-          punsubscribe(pattern).callback { |_|
-            df.succeed
-          }
-        end
+      unsubscribe_proc_impl(:punsubscribe, @psubscriptions, pattern, proc)
+    end
+
+    protected
+
+    def configure(uri_string)
+      uri = URI(uri_string)
+
+      @host = uri.host
+      @port = uri.port
+      @password = uri.password
+
+      if @name
+        EM::Hiredis.logger.info("#{@name} - Reconfiguring to #{uri_string}")
       else
-        df.fail
+        EM::Hiredis.logger.info("#{uri_string} (pubsub) - Configured")
       end
+      @name = "#{uri_string} (pubsub)"
+    end
+
+    def factory_connection
+      df = EM::DefaultDeferrable.new
+
+      begin
+        connection = @em.connect(
+          @host,
+          @port,
+          PubsubConnection,
+          @inactivity_trigger_secs,
+          @inactivity_response_timeout,
+          @name
+        )
+
+        connection.on(:connected) {
+          maybe_auth(connection).callback {
+
+            connection.on(:message, &method(:message_callbacks))
+            connection.on(:pmessage, &method(:pmessage_callbacks))
+
+            [ :message,
+              :pmessage,
+              :subscribe,
+              :unsubscribe,
+              :psubscribe,
+              :punsubscribe
+            ].each do |command|
+              connection.on(command) { |*args|
+                emit(command, *args)
+              }
+            end
+
+            connection.send_command(:subscribe, *@subscriptions.keys) if @subscriptions.any?
+            connection.send_command(:psubscribe, *@psubscriptions.keys) if @psubscriptions.any?
+
+            df.succeed(connection)
+          }.errback { |e|
+            # Failure to auth counts as a connection failure
+            connection.close_connection
+            df.fail(e)
+          }
+        }
+
+        connection.on(:connection_failed) {
+          df.fail('Connection failed')
+        }
+      rescue EventMachine::ConnectionError => e
+        df.fail(e)
+      end
+
       return df
     end
 
-    # Pubsub connections to not support even the PING command, but it is useful,
-    # especially with read-only connections like pubsub, to be able to check that
-    # the TCP connection is still usefully alive.
-    #
-    # This is not particularly elegant, but it's probably the best we can do
-    # for now. Ping support for pubsub connections is being considerred:
-    # https://github.com/antirez/redis/issues/420
-    def ping
-      subscribe(PING_CHANNEL).callback {
-        unsubscribe(PING_CHANNEL)
-      }
+    def subscribe_impl(type, subscriptions, channel, cb)
+      if subscriptions.include?(channel)
+        # Short circuit issuing the command if we're already subscribed
+        subscriptions[channel] << cb
+      elsif @connection_manager.state == :failed
+        raise('Redis connection in failed state')
+      elsif @connection_manager.state == :connected
+        @connection_manager.connection.send_command(type, channel)
+        subscriptions[channel] << cb
+      else
+        # We will issue subscription command when we connect
+        subscriptions[channel] << cb
+      end
     end
 
-    private
-    
-    # Send a command to redis without adding a deferrable for it. This is
-    # useful for commands for which replies work or need to be treated
-    # differently
-    def raw_send_command(sym, args)
-      if @connected
-        @connection.send_command(sym, args)
-      else
-        callback do
-          @connection.send_command(sym, args)
+    def unsubscribe_impl(type, subscriptions, channel)
+      if subscriptions.include?(channel)
+        subscriptions.delete(channel)
+        if @connection_manager.state == :connected
+          @connection_manager.connection.send_command(type, channel)
         end
       end
-      return nil
     end
 
-    def pubsub_deferrable(channel)
-      df = EM::DefaultDeferrable.new
-      @pubsub_defs[channel].push(df)
-      df
+    def unsubscribe_proc_impl(type, subscriptions, channel, proc)
+      removed = subscriptions[channel].delete(proc)
+
+      # Kill the redis subscription if that was the last callback
+      if removed && subscriptions[channel].empty?
+        unsubscribe_impl(type, subscriptions, channel)
+      end
     end
 
-    def handle_reply(reply)
-      if reply && PUBSUB_MESSAGES.include?(reply[0]) # reply can be nil
-        # Note: pmessage is the only message with 4 arguments
-        kind, subscription, d1, d2 = *reply
+    def message_callbacks(channel, message)
+      cbs = @subscriptions[channel]
+      if cbs
+        cbs.each { |cb| cb.call(message) if cb }
+      end
+    end
 
-        case kind.to_sym
-        when :message
-          if @sub_callbacks.has_key?(subscription)
-            @sub_callbacks[subscription].each { |cb| cb.call(d1) }
-          end
-          # Arguments are channel, message payload
-          emit(:message, subscription, d1)
-        when :pmessage
-          if @psub_callbacks.has_key?(subscription)
-            @psub_callbacks[subscription].each { |cb| cb.call(d1, d2) }
-          end
-          # Arguments are original pattern, channel, message payload
-          emit(:pmessage, subscription, d1, d2)
-        else
-          if @pubsub_defs[subscription].any?
-            df = @pubsub_defs[subscription].shift
-            df.succeed(d1)
-            # Cleanup empty arrays
-            if @pubsub_defs[subscription].empty?
-              @pubsub_defs.delete(subscription)
-            end
-          end
+    def pmessage_callbacks(pattern, channel, message)
+      cbs = @psubscriptions[pattern]
+      if cbs
+        cbs.each { |cb| cb.call(channel, message) if cb }
+      end
+    end
 
-          # Also emit the event, as an alternative to using the deferrables
-          emit(kind.to_sym, subscription, d1)
-        end
+    def maybe_auth(connection)
+      if @password
+        connection.auth(@password)
       else
-        super
+        df = EM::DefaultDeferrable.new
+        df.succeed
+        df
       end
     end
   end

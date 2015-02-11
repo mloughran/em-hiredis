@@ -16,11 +16,9 @@ module EventMachine
     end
     self.reconnect_timeout = 0.5
 
-    def self.setup(uri = nil)
+    def self.setup(uri = nil, activity_timeout = nil, response_timeout = nil)
       uri = uri || ENV["REDIS_URL"] || "redis://127.0.0.1:6379/0"
-      client = Client.new
-      client.configure(uri)
-      client
+      Client.new(uri, activity_timeout, response_timeout)
     end
 
     # Connects to redis and returns a client instance
@@ -34,10 +32,9 @@ module EventMachine
     # Unix socket uris are supported, e.g. unix:///tmp/redis.sock, however
     # it's not possible to set the db or password - use initialize instead in
     # this case
-    def self.connect(uri = nil)
-      client = setup(uri)
+    def self.connect(uri = nil, activity_timeout = nil, response_timeout = nil)
+      client = setup(uri, activity_timeout, response_timeout)
       client.connect
-      client
     end
 
     def self.logger=(logger)
@@ -58,8 +55,14 @@ module EventMachine
   end
 end
 
-require 'em-hiredis/event_emitter'
-require 'em-hiredis/connection'
-require 'em-hiredis/base_client'
-require 'em-hiredis/client'
+require 'digest/sha1'
+require 'hiredis/reader'
+require 'em-hiredis/support/event_emitter'
+require 'em-hiredis/support/cancellable_deferrable'
+require 'em-hiredis/support/inactivity_checker'
+require 'em-hiredis/support/state_machine'
+require 'em-hiredis/connection_manager'
+require 'em-hiredis/redis_connection'
+require 'em-hiredis/pubsub_connection'
+require 'em-hiredis/redis_client'
 require 'em-hiredis/pubsub_client'

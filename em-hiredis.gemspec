@@ -6,8 +6,8 @@ Gem::Specification.new do |s|
   s.name        = "em-hiredis"
   s.version     = EventMachine::Hiredis::VERSION
   s.platform    = Gem::Platform::RUBY
-  s.authors     = ["Martyn Loughran"]
-  s.email       = ["me@mloughran.com"]
+  s.authors     = ["Martyn Loughran", "Mike Pye"]
+  s.email       = ["me@mloughran.com", "mail@mdpye.co.uk"]
   s.homepage    = "http://github.com/mloughran/em-hiredis"
   s.summary     = %q{Eventmachine redis client}
   s.description = %q{Eventmachine redis client using hiredis native parser}

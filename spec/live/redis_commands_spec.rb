@@ -833,29 +833,6 @@ describe EventMachine::Hiredis, "with nested multi-bulk response" do
   end
 end
 
-describe EventMachine::Hiredis, "monitor" do
-  it "returns monitored commands" do
-    connect do |redis|
-      # 1. Create 2nd connection to send traffic to monitor
-      redis2 = EventMachine::Hiredis.connect("redis://localhost:6379/")
-      redis2.callback {
-        # 2. Monitor after command has connected
-        redis.monitor do |reply|
-          reply.should == "OK"
-
-          # 3. Command which should show up in monitor output
-          redis2.get('foo')
-        end
-      }
-
-      redis.on(:monitor) do |line|
-        line.should =~ /foo/
-        done
-      end
-    end
-  end
-end
-
 describe EventMachine::Hiredis, "sorting" do
   context "with some simple sorting data" do
     def set(&blk)
