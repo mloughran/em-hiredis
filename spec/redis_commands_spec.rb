@@ -468,7 +468,7 @@ describe EventMachine::Hiredis, "commands" do
       redis.sadd("set", 'key1').errback { fail }
       redis.sadd("set", 'key2').errback { fail }
       redis.zadd('zset', 1, 'set').errback { fail }
-      redis.zcount('zset').callback { |r| r.should == 1 }.errback { fail }
+      redis.zcount('zset', '-inf', '+inf').callback { |r| r.should == 1 }.errback { fail }
       redis.del('set').errback { fail }
       redis.del('zset') { done }
     end
@@ -480,26 +480,26 @@ describe EventMachine::Hiredis, "commands" do
       redis.sadd("set", 'key2').errback { fail }
       redis.zadd('zset', 1, 'set').errback { fail }
       redis.zrange('zset', 0, 1).callback { |r| r.should == ['set'] }.errback { fail }
-      redis.zcount('zset').callback { |r| r.should == 1 }.errback { fail }
+      redis.zcount('zset', '-inf', '+inf').callback { |r| r.should == 1 }.errback { fail }
       redis.del('set').errback { fail }
       redis.del('zset') { done }
     end
   end
 
-  it "deletes members to a zset" do
+  it "deletes members from a zset" do
     connect do |redis|
       redis.sadd("set", 'key1').errback { fail }
       redis.sadd("set", 'key2').errback { fail }
-      redis.type?('set').callback { |r| r.should == "set" }.errback { fail }
+      redis.type('set').callback { |r| r.should == "set" }.errback { fail }
       redis.sadd("set2", 'key3').errback { fail }
       redis.sadd("set2", 'key4').errback { fail }
-      redis.type?('set2').callback { |r| r.should == "set" }.errback { fail }
+      redis.type('set2').callback { |r| r.should == "set" }.errback { fail }
       redis.zadd('zset', 1, 'set').errback { fail }
-      redis.zcount('zset').callback { |r| r.should == 1 }.errback { fail }
+      redis.zcount('zset', '-inf', '+inf').callback { |r| r.should == 1 }.errback { fail }
       redis.zadd('zset', 2, 'set2').errback { fail }
-      redis.zcount('zset').callback { |r| r.should == 2 }.errback { fail }
-      redis.zset_delete('zset', 'set').errback { fail }
-      redis.zcount('zset').callback { |r| r.should == 1 }.errback { fail }
+      redis.zcount('zset', '-inf', '+inf').callback { |r| r.should == 2 }.errback { fail }
+      redis.zrem('zset', 'set').errback { fail }
+      redis.zcount('zset', '-inf', '+inf').callback { |r| r.should == 1 }.errback { fail }
       redis.del('set').errback { fail }
       redis.del('set2').errback { fail }
       redis.del('zset') { done }
@@ -513,13 +513,13 @@ describe EventMachine::Hiredis, "commands" do
       redis.sadd("set2", 'key3').errback { fail }
       redis.sadd("set2", 'key4').errback { fail }
       redis.sadd("set3", 'key1').errback { fail }
-      redis.type?('set').callback { |r| r.should == 'set' }.errback { fail }
-      redis.type?('set2').callback { |r| r.should == 'set' }.errback { fail }
-      redis.type?('set3').callback { |r| r.should == 'set' }.errback { fail }
+      redis.type('set').callback { |r| r.should == 'set' }.errback { fail }
+      redis.type('set2').callback { |r| r.should == 'set' }.errback { fail }
+      redis.type('set3').callback { |r| r.should == 'set' }.errback { fail }
       redis.zadd('zset', 1, 'set').errback { fail }
       redis.zadd('zset', 2, 'set2').errback { fail }
       redis.zadd('zset', 3, 'set3').errback { fail }
-      redis.zcount('zset').callback { |r| r.should == 3 }.errback { fail }
+      redis.zcount('zset', '-inf', '+inf').callback { |r| r.should == 3 }.errback { fail }
       redis.zrange('zset', 0, 3).callback { |r| r.should == ['set', 'set2', 'set3'] }.errback { fail }
       redis.del('set').errback { fail }
       redis.del('set2').errback { fail }
@@ -535,13 +535,13 @@ describe EventMachine::Hiredis, "commands" do
       redis.sadd("set2", 'key3').errback { fail }
       redis.sadd("set2", 'key4').errback { fail }
       redis.sadd("set3", 'key1').errback { fail }
-      redis.type?('set').callback { |r| r.should == 'set' }.errback { fail }
-      redis.type?('set2').callback { |r| r.should == 'set' }.errback { fail }
-      redis.type?('set3').callback { |r| r.should == 'set' }.errback { fail }
+      redis.type('set').callback { |r| r.should == 'set' }.errback { fail }
+      redis.type('set2').callback { |r| r.should == 'set' }.errback { fail }
+      redis.type('set3').callback { |r| r.should == 'set' }.errback { fail }
       redis.zadd('zset', 1, 'set').errback { fail }
       redis.zadd('zset', 2, 'set2').errback { fail }
       redis.zadd('zset', 3, 'set3').errback { fail }
-      redis.zcount('zset').callback { |r| r.should == 3 }.errback { fail }
+      redis.zcount('zset', '-inf', '+inf').callback { |r| r.should == 3 }.errback { fail }
       redis.zrevrange('zset', 0, 3).callback { |r| r.should == ['set3', 'set2', 'set'] }.errback { fail }
       redis.del('set').errback { fail }
       redis.del('set2').errback { fail }
@@ -562,7 +562,7 @@ describe EventMachine::Hiredis, "commands" do
       redis.zadd('zset', 2, 'set2').errback { fail }
       redis.zadd('zset', 3, 'set3').errback { fail }
       redis.zadd('zset', 4, 'set4').errback { fail }
-      redis.zcount('zset').callback { |r| r.should == 4 }.errback { fail }
+      redis.zcount('zset', '-inf', '+inf').callback { |r| r.should == 4 }.errback { fail }
       redis.zrangebyscore('zset', 2, 3).callback { |r| r.should == ['set2', 'set3'] }.errback { fail }
       redis.del('set').errback { fail }
       redis.del('set2').errback { fail }
@@ -601,7 +601,7 @@ describe EventMachine::Hiredis, "commands" do
       # attempt to update a key that's not a zset
       redis.set("i_am_not_a_zet", "value").errback { fail }
       # shouldn't raise error anymore
-      redis.zincrby("i_am_not_a_zet", 23, "element").callback { |r| r.should == nil }.errback { fail }
+      redis.zincrby("i_am_not_a_zet", 23, "element").errback { |e| e.message.should =~ /WRONGTYPE/ }.callback { fail }
 
       redis.del("hackers").errback { fail }
       redis.del("i_am_not_a_zet") { done }
