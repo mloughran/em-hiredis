@@ -54,7 +54,7 @@ module EventMachine::Hiredis
         @subs << channel
       end
       raw_send_command(:subscribe, *channels)
-      return pubsub_deferrable(channel)
+      return pubsub_deferrable(*channels)
     end
     
     # Unsubscribe all callbacks for a given channel
@@ -67,7 +67,7 @@ module EventMachine::Hiredis
         @subs.delete(channel)
       end
       raw_send_command(:unsubscribe, *channels)
-      return pubsub_deferrable(channel)
+      return pubsub_deferrable(*channels)
     end
 
     # Unsubscribe a given callback from a channel. Will unsubscribe from redis
