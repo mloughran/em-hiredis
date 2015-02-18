@@ -39,14 +39,34 @@ module EventMachine::Hiredis
       return pubsub_deferrable(channel)
     end
     
+    # Subscribe to a pubsub channels
+    # 
+    # If an optional proc / block is provided then it will be called when a
+    # message is received on this channel
+    # 
+    # @return [Deferrable] Redis subscribe call
+    # 
+    def subscribe(*channels, &block)
+      channels.each do |channel|
+        if block
+          @sub_callbacks[channel] << block
+        end
+        @subs << channel
+      end
+      raw_send_command(:subscribe, *channels)
+      return pubsub_deferrable(channel)
+    end
+    
     # Unsubscribe all callbacks for a given channel
     #
     # @return [Deferrable] Redis unsubscribe call
     #
-    def unsubscribe(channel)
-      @sub_callbacks.delete(channel)
-      @subs.delete(channel)
-      raw_send_command(:unsubscribe, [channel])
+    def unsubscribe(*channels)
+      channels.each do |channel|
+        @sub_callbacks.delete(channel)
+        @subs.delete(channel)
+      end
+      raw_send_command(:unsubscribe, *channels)
       return pubsub_deferrable(channel)
     end
 
