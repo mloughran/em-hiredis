@@ -79,20 +79,13 @@ module EventMachine::Hiredis
 
     def close
       case @sm.state
-      when :initial
-        @sm.update_state(:stopped)
       when :connecting
         @connect_operation.cancel
-        @sm.update_state(:stopped)
       when :connected
         @connection.remove_all_listeners(:disconnected)
         @connection.close_connection
-        @sm.update_state(:stopped)
-      when :disconnected
-        @sm.update_state(:stopped)
-      when :failed
-        @sm.update_state(:stopped)
       end
+      @sm.update_state(:stopped)
     end
 
     def state
