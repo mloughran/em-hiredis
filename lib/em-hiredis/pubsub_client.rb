@@ -228,6 +228,8 @@ module EventMachine::Hiredis
         # We will issue subscription command when we connect
         subscriptions[channel] << cb
       end
+
+      return nil
     end
 
     def unsubscribe_impl(type, subscriptions, channel)
@@ -237,6 +239,8 @@ module EventMachine::Hiredis
           @connection_manager.connection.send_command(type, channel)
         end
       end
+
+      return nil
     end
 
     def unsubscribe_proc_impl(type, subscriptions, channel, proc)
@@ -246,6 +250,8 @@ module EventMachine::Hiredis
       if removed && subscriptions[channel].empty?
         unsubscribe_impl(type, subscriptions, channel)
       end
+
+      return nil
     end
 
     def message_callbacks(channel, message)
