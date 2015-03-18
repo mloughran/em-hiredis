@@ -194,8 +194,12 @@ module EventMachine::Hiredis
               }
             end
 
-            connection.send_command(:subscribe, *@subscriptions.keys) if @subscriptions.any?
-            connection.send_command(:psubscribe, *@psubscriptions.keys) if @psubscriptions.any?
+            @subscriptions.keys.each_slice(5000) { |slice|
+              connection.send_command(:subscribe, *slice)
+            }
+            @psubscriptions.keys.each_slice(5000) { |slice|
+              connection.send_command(:psubscribe, *slice)
+            }
 
             df.succeed(connection)
           }.errback { |e|
