@@ -259,17 +259,11 @@ module EventMachine::Hiredis
     end
 
     def message_callbacks(channel, message)
-      cbs = @subscriptions[channel]
-      if cbs
-        cbs.each { |cb| cb.call(message) if cb }
-      end
+      @subscriptions[channel].each { |cb| cb.call(message) if cb }
     end
 
     def pmessage_callbacks(pattern, channel, message)
-      cbs = @psubscriptions[pattern]
-      if cbs
-        cbs.each { |cb| cb.call(channel, message) if cb }
-      end
+      @psubscriptions[pattern].each { |cb| cb.call(channel, message) if cb }
     end
 
     def maybe_auth(connection)
