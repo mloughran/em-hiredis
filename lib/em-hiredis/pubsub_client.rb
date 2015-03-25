@@ -50,8 +50,8 @@ module EventMachine::Hiredis
       # nil is a valid "callback", required because even if the user is using
       # emitted events rather than callbacks to consume their messages, we still
       # need to mark the fact that we are subscribed.
-      @subscriptions = Hash.new { |h, k| h[k] = [] }
-      @psubscriptions = Hash.new { |h, k| h[k] = [] }
+      @subscriptions = {}
+      @psubscriptions = {}
 
       @connection_manager = ConnectionManager.new(method(:factory_connection), em)
 
@@ -227,10 +227,10 @@ module EventMachine::Hiredis
         raise('Redis connection in failed state')
       elsif @connection_manager.state == :connected
         @connection_manager.connection.send_command(type, channel)
-        subscriptions[channel] << cb
+        subscriptions[channel] = [cb]
       else
         # We will issue subscription command when we connect
-        subscriptions[channel] << cb
+        subscriptions[channel] = [cb]
       end
 
       return nil
@@ -259,11 +259,15 @@ module EventMachine::Hiredis
     end
 
     def message_callbacks(channel, message)
-      @subscriptions[channel].each { |cb| cb.call(message) if cb }
+      if @subscriptions.include?(channel)
+        @subscriptions[channel].each { |cb| cb.call(message) if cb }
+      end
     end
 
     def pmessage_callbacks(pattern, channel, message)
-      @psubscriptions[pattern].each { |cb| cb.call(channel, message) if cb }
+      if @psubscriptions.include?(pattern)
+        @psubscriptions[pattern].each { |cb| cb.call(channel, message) if cb }
+      end
     end
 
     def maybe_auth(connection)
