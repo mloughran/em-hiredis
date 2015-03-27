@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
   s.description = %q{Eventmachine redis client using hiredis native parser}
 
   s.add_dependency 'eventmachine', '~> 1.0'
-  s.add_dependency 'hiredis', '~> 0.5.0'
+  s.add_dependency 'hiredis', '~> 0.6.0'
 
   s.add_development_dependency 'em-spec', '~> 0.2.5'
   s.add_development_dependency 'rspec', '~> 2.6.0'
