@@ -62,6 +62,7 @@ module EventMachine::Hiredis
     end
 
     def reconnect
+      @reconnect_attempt = 0
       case @sm.state
       when :initial
         connect
