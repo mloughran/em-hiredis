@@ -248,11 +248,13 @@ module EventMachine::Hiredis
     end
 
     def unsubscribe_proc_impl(type, subscriptions, channel, proc)
-      removed = subscriptions[channel].delete(proc)
+      if subscriptions.include?(channel)
+        subscriptions[channel].delete(proc)
 
-      # Kill the redis subscription if that was the last callback
-      if removed && subscriptions[channel].empty?
-        unsubscribe_impl(type, subscriptions, channel)
+        # Kill the redis subscription if that was the last callback
+        if subscriptions[channel].empty?
+          unsubscribe_impl(type, subscriptions, channel)
+        end
       end
 
       return nil
