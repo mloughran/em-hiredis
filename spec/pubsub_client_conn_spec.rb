@@ -36,6 +36,15 @@ describe EM::Hiredis::PubsubClient do
       end
     end
 
+    it "should not error when trying to unsubscribe a proc from a channel subscription that does not exist" do
+      mock_connections(1) do |client, (connection)|
+        client.connect
+        connection.connection_completed
+
+        lambda { client.unsubscribe_proc('channel', Proc.new { |m| fail }) }.should_not raise_error
+      end
+    end
+
     it "should allow selective unsubscription" do
       mock_connections(1) do |client, (connection)|
         client.connect
