@@ -25,6 +25,8 @@ module EventMachine::Hiredis
     include EventEmitter
     include EventMachine::Deferrable
 
+    RESUBSCRIBE_BATCH_SIZE = 1000
+
     attr_reader :host, :port, :password
 
     # uri:
@@ -194,10 +196,10 @@ module EventMachine::Hiredis
               }
             end
 
-            @subscriptions.keys.each_slice(5000) { |slice|
+            @subscriptions.keys.each_slice(RESUBSCRIBE_BATCH_SIZE) { |slice|
               connection.send_command(:subscribe, *slice)
             }
-            @psubscriptions.keys.each_slice(5000) { |slice|
+            @psubscriptions.keys.each_slice(RESUBSCRIBE_BATCH_SIZE) { |slice|
               connection.send_command(:psubscribe, *slice)
             }
 
