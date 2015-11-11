@@ -153,7 +153,7 @@ Sometimes a network connection may hang in ways which are difficult to detect or
 
 To start an application layer ping-pong mechanism for testing connection liveness, call the following at any time on a client:
 
-    redis.configure_inactivity_timeout(5, 3)
+    redis.configure_inactivity_check(5, 3)
 
 This configures a `PING` command to be sent if 5 seconds elapse without receiving any data from the server, and a reconnection to be triggered if a futher 3 seconds elapse after the `PING` is submitted.
 
