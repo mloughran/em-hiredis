@@ -47,8 +47,8 @@ module EventMachine
     def self.logger
       @@logger ||= begin
         require 'logger'
-        log = Logger.new(STDOUT)
-        log.level = Logger::WARN
+        log = ::Logger.new(STDOUT)
+        log.level = ::Logger::WARN
         log
       end
     end
