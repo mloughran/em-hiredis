@@ -572,6 +572,19 @@ describe EventMachine::Hiredis, "commands" do
     end
   end
 
+  it "gets a range by score of values from a zset with_scores" do
+    connect do |redis|
+      redis.zadd 'zset', 1, 'set'
+      redis.zadd 'zset', 2, 'set2'
+      redis.zadd 'zset', 3, 'set3'
+      redis.zadd 'zset', 4, 'set4'
+      command = redis.zrangebyscore('zset', 2, 3, "WITHSCORES")
+      command.callback { |r| r.should == ['set2', "2", 'set3', "3"] }
+      command.errback { |e| e.should be_false }
+      redis.del('zset') { done }
+    end
+  end
+
   it "gets a score for a specific value in a zset (ZSCORE)" do
     connect do |redis|
       redis.zadd "zset", 23, "value"
