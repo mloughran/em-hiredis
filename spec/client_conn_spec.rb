@@ -23,10 +23,12 @@ describe EM::Hiredis::Client do
       # Both connections expect to receive 'select' first
       # But pings 3 and 4 and issued between conn_a being disconnected
       # and conn_b completing its connection
+      conn_a._expect('ping')
       conn_a._expect('select 9')
       conn_a._expect('ping 1')
       conn_a._expect('ping 2')
 
+      conn_b._expect('ping')
       conn_b._expect('select 9')
       conn_b._expect('ping 3')
       conn_b._expect('ping 4')
@@ -83,14 +85,16 @@ describe EM::Hiredis::Client do
           got_errback = true
         }
 
-        good_connection._expect('select 9')
         good_connection._expect('ping')
+        good_connection._expect('select 9')
 
         # But after calling connect and completing the connection, we are functional again
         client.connect
         good_connection.connection_completed
 
+
         got_callback = false
+        good_connection._expect('ping')
         client.ping.callback {
           got_callback = true
         }
@@ -116,6 +120,7 @@ describe EM::Hiredis::Client do
           got_errback = true
         }
 
+        good_connection._expect('ping')
         good_connection._expect('select 9')
         good_connection._expect('ping')
 
@@ -149,6 +154,7 @@ describe EM::Hiredis::Client do
         # not connected yet
         conn_a.unbind
 
+        conn_b._expect('ping')
         conn_b._expect('select 9')
         conn_b.connection_completed
 
@@ -158,7 +164,7 @@ describe EM::Hiredis::Client do
 
     it 'should retry when partially set up' do
       mock_connections(2) { |client, (conn_a, conn_b)|
-        conn_a._expect_no_response('select 9')
+        conn_a._expect_no_response('ping')
 
         connected = false
         client.connect.callback {
@@ -169,6 +175,7 @@ describe EM::Hiredis::Client do
         # awaiting response to 'select'
         conn_a.unbind
 
+        conn_b._expect('ping')
         conn_b._expect('select 9')
         conn_b.connection_completed
 
@@ -178,6 +185,7 @@ describe EM::Hiredis::Client do
 
     it 'should reconnect once connected' do
       mock_connections(2) { |client, (conn_a, conn_b)|
+        conn_a._expect('ping')
         conn_a._expect('select 9')
 
         client.connect.errback {
@@ -193,6 +201,7 @@ describe EM::Hiredis::Client do
         # awaiting response to 'select'
         conn_a.unbind
 
+        conn_b._expect('ping')
         conn_b._expect('select 9')
         conn_b.connection_completed
 

@@ -51,7 +51,7 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
         channel.should == channel
         message.should == 'foo'
 
-        callback_count.should == 2
+        callback_count.should == 3
         done
       }
 

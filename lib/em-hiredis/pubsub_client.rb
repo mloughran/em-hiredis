@@ -184,7 +184,7 @@ module EventMachine::Hiredis
 
         connection.on(:connected) {
           maybe_auth(connection).callback {
-
+            connection.ping_with_pubsub
             connection.on(:message, &method(:message_callbacks))
             connection.on(:pmessage, &method(:pmessage_callbacks))
 

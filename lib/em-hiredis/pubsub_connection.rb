@@ -2,7 +2,7 @@ module EventMachine::Hiredis
   module PubsubConnection
     include EventMachine::Hiredis::EventEmitter
 
-    PUBSUB_COMMANDS = %w{subscribe unsubscribe psubscribe punsubscribe}.freeze
+    PUBSUB_COMMANDS = %w{ping subscribe unsubscribe psubscribe punsubscribe}.freeze
     PUBSUB_MESSAGES = (PUBSUB_COMMANDS + %w{message pmessage}).freeze
 
     PING_CHANNEL = '__em-hiredis-ping'
@@ -19,13 +19,17 @@ module EventMachine::Hiredis
       @inactivity_checker = InactivityChecker.new(inactivity_trigger_secs, inactivity_response_timeout)
       @inactivity_checker.on(:activity_timeout) {
         EM::Hiredis.logger.debug("#{@name} - Sending ping")
-        send_command('subscribe', PING_CHANNEL)
-        send_command('unsubscribe', PING_CHANNEL)
+        ping_with_pubsub
       }
       @inactivity_checker.on(:response_timeout) {
         EM::Hiredis.logger.warn("#{@name} - Closing connection because of inactivity timeout")
         close_connection
       }
+    end
+
+    def ping_with_pubsub
+      send_command('subscribe', PING_CHANNEL)
+      send_command('unsubscribe', PING_CHANNEL)
     end
 
     def send_command(command, *channels)
@@ -113,7 +117,7 @@ module EventMachine::Hiredis
         if PUBSUB_MESSAGES.include?(type)
           emit(type.to_sym, *reply[1..-1])
         else
-          EM::Hireds.logger.error("#{@name} - unrecognised response: #{reply.inspect}")
+          EM::Hiredis.logger.error("#{@name} - unrecognised response: #{reply.inspect}")
         end
       end
     end

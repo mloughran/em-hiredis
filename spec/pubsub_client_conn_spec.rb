@@ -21,6 +21,10 @@ describe EM::Hiredis::PubsubClient do
     it "should unsubscribe all callbacks for a channel on unsubscribe" do
       mock_connections(1) do |client, (connection)|
         client.connect
+
+        connection._expect_pubsub("subscribe __em-hiredis-ping")
+        connection._expect_pubsub("unsubscribe __em-hiredis-ping")
+
         connection.connection_completed
 
         connection._expect_pubsub('subscribe channel')
@@ -39,6 +43,10 @@ describe EM::Hiredis::PubsubClient do
     it "should not error when trying to unsubscribe a proc from a channel subscription that does not exist" do
       mock_connections(1) do |client, (connection)|
         client.connect
+
+        connection._expect_pubsub("subscribe __em-hiredis-ping")
+        connection._expect_pubsub("unsubscribe __em-hiredis-ping")
+
         connection.connection_completed
 
         lambda { client.unsubscribe_proc('channel', Proc.new { |m| fail }) }.should_not raise_error
@@ -48,6 +56,9 @@ describe EM::Hiredis::PubsubClient do
     it "should allow selective unsubscription" do
       mock_connections(1) do |client, (connection)|
         client.connect
+        connection._expect_pubsub("subscribe __em-hiredis-ping")
+        connection._expect_pubsub("unsubscribe __em-hiredis-ping")
+
         connection.connection_completed
 
         connection._expect_pubsub('subscribe channel')
@@ -70,6 +81,9 @@ describe EM::Hiredis::PubsubClient do
     it "should unsubscribe from redis when all subscriptions for a channel are unsubscribed" do
       mock_connections(1) do |client, (connection)|
         client.connect
+
+        connection._expect_pubsub("subscribe __em-hiredis-ping")
+        connection._expect_pubsub("unsubscribe __em-hiredis-ping")
         connection.connection_completed
 
         connection._expect_pubsub('subscribe channel')
@@ -94,6 +108,9 @@ describe EM::Hiredis::PubsubClient do
     it "should punsubscribe all callbacks for a pattern on punsubscribe" do
       mock_connections(1) do |client, (connection)|
         client.connect
+
+        connection._expect_pubsub("subscribe __em-hiredis-ping")
+        connection._expect_pubsub("unsubscribe __em-hiredis-ping")
         connection.connection_completed
 
         connection._expect_pubsub('psubscribe channel:*')
@@ -113,6 +130,9 @@ describe EM::Hiredis::PubsubClient do
     it "should allow selective punsubscription" do
       mock_connections(1) do |client, (connection)|
         client.connect
+
+        connection._expect_pubsub("subscribe __em-hiredis-ping")
+        connection._expect_pubsub("unsubscribe __em-hiredis-ping")
         connection.connection_completed
 
         connection._expect_pubsub('psubscribe channel:*')
@@ -135,6 +155,9 @@ describe EM::Hiredis::PubsubClient do
     it "should punsubscribe from redis when all psubscriptions for a pattern are punsubscribed" do
       mock_connections(1) do |client, (connection)|
         client.connect
+        connection._expect_pubsub("subscribe __em-hiredis-ping")
+        connection._expect_pubsub("unsubscribe __em-hiredis-ping")
+
         connection.connection_completed
 
         connection._expect_pubsub('psubscribe channel:*')
@@ -161,6 +184,10 @@ describe EM::Hiredis::PubsubClient do
     it 'should resubscribe all existing on reconnection' do
       mock_connections(2) do |client, (conn_a, conn_b)|
         client.connect
+
+        conn_a._expect_pubsub("subscribe __em-hiredis-ping")
+        conn_a._expect_pubsub("unsubscribe __em-hiredis-ping")
+
         conn_a.connection_completed
 
         channels = %w{foo bar baz}
@@ -198,6 +225,9 @@ describe EM::Hiredis::PubsubClient do
         # Trigger a reconnection
         conn_a.unbind
 
+        conn_b._expect_pubsub("subscribe __em-hiredis-ping")
+        conn_b._expect_pubsub("unsubscribe __em-hiredis-ping")
+
         # All subs previously made should be re-made
         conn_b._expect_pubsub("subscribe #{channels.join(' ')}")
         conn_b._expect_pubsub("psubscribe #{patterns.join(' ')}")
@@ -229,6 +259,8 @@ describe EM::Hiredis::PubsubClient do
         client.connect.callback {
           connected = true
         }
+        connection._expect('subscribe __em-hiredis-ping')
+        connection._expect('unsubscribe __em-hiredis-ping')
         connection.connection_completed
 
         connected.should == true
@@ -243,6 +275,9 @@ describe EM::Hiredis::PubsubClient do
         client.connect.callback {
           connected = true
         }
+        connection._expect_pubsub('subscribe __em-hiredis-ping')
+        connection._expect_pubsub('unsubscribe __em-hiredis-ping')
+
         connection.connection_completed
         connected.should == true
 
@@ -269,6 +304,8 @@ describe EM::Hiredis::PubsubClient do
           connected = true
         }
 
+        connection._expect_pubsub('subscribe __em-hiredis-ping')
+        connection._expect_pubsub('unsubscribe __em-hiredis-ping')
         connection._expect_pubsub('subscribe channel')
 
         message_received = nil
@@ -288,18 +325,25 @@ describe EM::Hiredis::PubsubClient do
 
     it 'should reconnect if auth command fails' do
       mock_connections(2, 'redis://:mypass@localhost:6379') do |client, (conn_a, conn_b)|
+
         conn_a._expect('auth mypass', RuntimeError.new('OOPS'))
         conn_b._expect('auth mypass')
+
 
         connected = false
         client.connect.callback {
           connected = true
         }
+
+        conn_b._expect('subscribe __em-hiredis-ping')
+        conn_b._expect('unsubscribe __em-hiredis-ping')
+
         conn_a.connection_completed
         connected.should == false
 
         conn_b.connection_completed
         connected.should == true
+
       end
     end
   end
