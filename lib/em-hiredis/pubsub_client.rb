@@ -45,7 +45,6 @@ module EventMachine::Hiredis
         inactivity_response_timeout = nil,
         em = EventMachine,
         reconnect_attempts = nil)
-
       @em = em
       configure(uri)
 
@@ -63,6 +62,7 @@ module EventMachine::Hiredis
 
       @connection_manager.on(:connected) {
         EM::Hiredis.logger.info("#{@name} - Connected")
+
         emit(:connected)
         set_deferred_status(:succeeded)
       }
@@ -181,14 +181,9 @@ module EventMachine::Hiredis
           @inactivity_response_timeout,
           @name
         )
-        puts "Connecting..."
         connection.on(:connected) {
-          puts "maybe auth?"
           maybe_auth(connection).callback {
-            puts "inside maybe_auth"
-            puts "connection.on ping callback"
-            connection.ping.callback {
-              puts "inside connection.on ping callback!"
+            connection.ping.timeout(@inactivity_response_timeout).callback {
               connection.on(:message, &method(:message_callbacks))
               connection.on(:pmessage, &method(:pmessage_callbacks))
 
@@ -211,8 +206,8 @@ module EventMachine::Hiredis
                 connection.send_command(:psubscribe, *slice)
               }
               df.succeed(connection)
-            }.errback {
-              # Failure to auth counts as a connection failure
+            }.errback { |e|
+              # Failure to ping counts as a connection failure
               connection.close_connection
               df.fail(e)
             }

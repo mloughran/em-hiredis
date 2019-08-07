@@ -313,7 +313,7 @@ module EventMachine::Hiredis
 
         connection.on(:connected) {
           maybe_auth(connection).callback {
-            connection.ping.callback {
+            connection.ping.timeout(2).callback {
               maybe_select(connection).callback {
                 @command_queue.each { |command_df, command, args|
                   connection.send_command(command_df, command, args)

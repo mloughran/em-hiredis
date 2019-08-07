@@ -3,14 +3,13 @@ module EventMachine::Hiredis
     include EventMachine::Hiredis::EventEmitter
 
     PUBSUB_COMMANDS = %w{ping subscribe unsubscribe psubscribe punsubscribe}.freeze
-    PUBSUB_MESSAGES = (PUBSUB_COMMANDS + %w{message pmessage}).freeze
+    PUBSUB_MESSAGES = (PUBSUB_COMMANDS + %w{message pmessage pong}).freeze
 
     PING_CHANNEL = '__em-hiredis-ping'
 
     def initialize(inactivity_trigger_secs = nil,
                    inactivity_response_timeout = 2,
                    name = 'unnamed connection')
-
       @name = name
       @reader = ::Hiredis::Reader.new
 
@@ -19,8 +18,7 @@ module EventMachine::Hiredis
       @inactivity_checker = InactivityChecker.new(inactivity_trigger_secs, inactivity_response_timeout)
       @inactivity_checker.on(:activity_timeout) {
         EM::Hiredis.logger.debug("#{@name} - Sending ping")
-        send_command('subscribe', PING_CHANNEL)
-        send_command('unsubscribe', PING_CHANNEL)
+        send_command('ping')
       }
       @inactivity_checker.on(:response_timeout) {
         EM::Hiredis.logger.warn("#{@name} - Closing connection because of inactivity timeout")
@@ -53,11 +51,8 @@ module EventMachine::Hiredis
 
 
     def ping
-      puts "ping method in pubsub_connection"
       df = @ping_df = EM::DefaultDeferrable.new
-      puts "send_data(marshal('ping'))"
-      send_data(marshal('ping'))
-      puts "return df"
+      send_command('ping')
       return df
     end
 
@@ -119,7 +114,7 @@ module EventMachine::Hiredis
         end
         @auth_df = nil
       elsif @ping_df
-        if reply.kind_of?(StandardError)
+        if reply.kind_of?(Exception)
           e = EM::Hiredis::RedisError.new(reply.message)
           e.redis_error = reply
           @ping_df.fail(e)
