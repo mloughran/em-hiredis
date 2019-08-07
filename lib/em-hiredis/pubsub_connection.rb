@@ -19,17 +19,13 @@ module EventMachine::Hiredis
       @inactivity_checker = InactivityChecker.new(inactivity_trigger_secs, inactivity_response_timeout)
       @inactivity_checker.on(:activity_timeout) {
         EM::Hiredis.logger.debug("#{@name} - Sending ping")
-        ping_with_pubsub
+        send_command('subscribe', PING_CHANNEL)
+        send_command('unsubscribe', PING_CHANNEL)
       }
       @inactivity_checker.on(:response_timeout) {
         EM::Hiredis.logger.warn("#{@name} - Closing connection because of inactivity timeout")
         close_connection
       }
-    end
-
-    def ping_with_pubsub
-      send_command('subscribe', PING_CHANNEL)
-      send_command('unsubscribe', PING_CHANNEL)
     end
 
     def send_command(command, *channels)
@@ -52,6 +48,16 @@ module EventMachine::Hiredis
     def auth(password)
       df = @auth_df = EM::DefaultDeferrable.new
       send_data(marshal('auth', password))
+      return df
+    end
+
+
+    def ping
+      puts "ping method in pubsub_connection"
+      df = @ping_df = EM::DefaultDeferrable.new
+      puts "send_data(marshal('ping'))"
+      send_data(marshal('ping'))
+      puts "return df"
       return df
     end
 
@@ -112,6 +118,15 @@ module EventMachine::Hiredis
           @auth_df.succeed(reply)
         end
         @auth_df = nil
+      elsif @ping_df
+        if reply.kind_of?(StandardError)
+          e = EM::Hiredis::RedisError.new(reply.message)
+          e.redis_error = reply
+          @ping_df.fail(e)
+        else
+          @ping_df.succeed(reply)
+        end
+        @ping_df = nil
       else
         type = reply[0]
         if PUBSUB_MESSAGES.include?(type)
