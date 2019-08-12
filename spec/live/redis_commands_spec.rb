@@ -1,6 +1,7 @@
 require 'spec_helper'
 
-describe EventMachine::Hiredis, "commands" do
+describe EM::Hiredis, "commands" do
+
   it "pings" do
     connect do |redis|
       redis.ping.callback { |r| r.should == 'PONG'; done }

@@ -11,11 +11,14 @@ describe EM::Hiredis::Client do
   # Create expected_connections connections, inject them in order in to the
   # client as it creates new ones
   def mock_connections(expected_connections)
-    em = EM::Hiredis::MockConnectionEM.new(expected_connections, ClientTestConnection)
+    em {
+      em = EM::Hiredis::MockConnectionEM.new(expected_connections, ClientTestConnection)
 
-    yield EM::Hiredis::Client.new('redis://localhost:6379/9', nil, nil, em), em.connections
+      yield EM::Hiredis::Client.new('redis://localhost:6379/9', nil, nil, em), em.connections
 
-    em.connections.each { |c| c._expectations_met! }
+      em.connections.each { |c| c._expectations_met! }
+      done
+    }
   end
 
   it 'should queue commands issued while reconnecting' do

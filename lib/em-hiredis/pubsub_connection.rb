@@ -5,8 +5,6 @@ module EventMachine::Hiredis
     PUBSUB_COMMANDS = %w{ping subscribe unsubscribe psubscribe punsubscribe}.freeze
     PUBSUB_MESSAGES = (PUBSUB_COMMANDS + %w{message pmessage pong}).freeze
 
-    PING_CHANNEL = '__em-hiredis-ping'
-
     def initialize(inactivity_trigger_secs = nil,
                    inactivity_response_timeout = 2,
                    name = 'unnamed connection')

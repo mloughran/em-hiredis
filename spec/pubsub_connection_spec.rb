@@ -131,7 +131,7 @@ describe EM::Hiredis::PubsubConnection do
         con.connection_completed
 
         EM.add_timer(3) {
-          con.sent.should include("*2\r\n$9\r\nsubscribe\r\n$17\r\n__em-hiredis-ping\r\n")
+          con.sent.should include("*1\r\n$4\r\nping\r\n")
           done
         }
       }
@@ -148,7 +148,7 @@ describe EM::Hiredis::PubsubConnection do
         }
 
         EM.add_timer(3) {
-          con.sent.should_not include("*2\r\n$9\r\nsubscribe\r\n$17\r\n__em-hiredis-ping\r\n")
+          con.sent.should_not include("*2\r\n$9\r\nsubscribe\r\n$17\r\n*1\r\n$4\r\nping\r\n")
           done
         }
       }
@@ -165,11 +165,11 @@ describe EM::Hiredis::PubsubConnection do
         }
 
         EM.add_timer(3) {
-          con.sent.should_not include("*2\r\n$9\r\nsubscribe\r\n$17\r\n__em-hiredis-ping\r\n")
+          con.sent.should_not include("*1\r\n$4\r\nping\r\n")
         }
 
         EM.add_timer(4) {
-          con.sent.should include("*2\r\n$9\r\nsubscribe\r\n$17\r\n__em-hiredis-ping\r\n")
+          con.sent.should include("*1\r\n$4\r\nping\r\n")
           done
         }
       }
@@ -181,7 +181,7 @@ describe EM::Hiredis::PubsubConnection do
         con.connection_completed
 
         EM.add_timer(4) {
-          con.sent.should include("*2\r\n$9\r\nsubscribe\r\n$17\r\n__em-hiredis-ping\r\n")
+          con.sent.should include("*1\r\n$4\r\nping\r\n")
           con.closed.should == true
           done
         }
@@ -199,7 +199,7 @@ describe EM::Hiredis::PubsubConnection do
         }
 
         EM.add_timer(4) {
-          con.sent.should include("*2\r\n$9\r\nsubscribe\r\n$17\r\n__em-hiredis-ping\r\n")
+          con.sent.should include("*1\r\n$4\r\nping\r\n")
           con.closed.should_not == true
           done
         }

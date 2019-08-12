@@ -94,6 +94,7 @@ module EventMachine::Hiredis
     # Commands may be issued before or during connection, they will be queued
     # and submitted to the server once the connection is active.
     def connect
+      @inactivity_response_timeout = 2 if @inactivity_response_timeout.nil?
       @connection_manager.connect
       return self
     end
