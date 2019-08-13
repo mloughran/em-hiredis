@@ -13,6 +13,8 @@ module EventMachine::Hiredis
     include EventEmitter
     include EventMachine::Deferrable
 
+    DEFAULT_RESPONSE_TIMEOUT = 2 # seconds
+    
     attr_reader :host, :port, :password, :db
 
     # uri:
@@ -36,7 +38,7 @@ module EventMachine::Hiredis
       configure(uri)
 
       @inactivity_trigger_secs = inactivity_trigger_secs
-      @inactivity_response_timeout = inactivity_response_timeout
+      @inactivity_response_timeout = inactivity_response_timeout || DEFAULT_RESPONSE_TIMEOUT
 
       # Commands received while we are not initialized, to be sent once we are
       @command_queue = []
@@ -81,7 +83,6 @@ module EventMachine::Hiredis
     # Commands may be issued before or during connection, they will be queued
     # and submitted to the server once the connection is active.
     def connect
-      @inactivity_response_timeout = 2 if @inactivity_response_timeout.nil?
       @connection_manager.connect
       return self
     end

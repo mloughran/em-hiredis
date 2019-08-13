@@ -101,6 +101,8 @@ module EventMachine::Hiredis
     end
 
     def handle_response(reply)
+      # In a password-protected Redis server it starts accepting commands only after auth succeeds.
+      # Therefore it is not possible for ping_df to complete before auth_df
       if @auth_df
         # If we're awaiting a response to auth, we will not have sent any other commands
         if reply.kind_of?(RuntimeError)
@@ -131,3 +133,4 @@ module EventMachine::Hiredis
     end
   end
 end
+

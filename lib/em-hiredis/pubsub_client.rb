@@ -26,6 +26,7 @@ module EventMachine::Hiredis
     include EventMachine::Deferrable
 
     RESUBSCRIBE_BATCH_SIZE = 1000
+    DEFAULT_RESPONSE_TIMEOUT = 2 # seconds
 
     attr_reader :host, :port, :password
 
@@ -49,7 +50,8 @@ module EventMachine::Hiredis
       configure(uri)
 
       @inactivity_trigger_secs = inactivity_trigger_secs
-      @inactivity_response_timeout = inactivity_response_timeout
+
+      @inactivity_response_timeout = inactivity_response_timeout || DEFAULT_RESPONSE_TIMEOUT
 
       # Subscribed channels and patterns to their callbacks
       # nil is a valid "callback", required because even if the user is using
@@ -94,7 +96,6 @@ module EventMachine::Hiredis
     # Commands may be issued before or during connection, they will be queued
     # and submitted to the server once the connection is active.
     def connect
-      @inactivity_response_timeout = 2 if @inactivity_response_timeout.nil?
       @connection_manager.connect
       return self
     end
