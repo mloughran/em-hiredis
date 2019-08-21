@@ -17,7 +17,7 @@ module EventMachine::Hiredis
       @inactivity_checker = InactivityChecker.new(inactivity_trigger_secs, inactivity_response_timeout)
       @inactivity_checker.on(:activity_timeout) {
         EM::Hiredis.logger.debug("#{@name} - Sending ping")
-        send_command(EM::DefaultDeferrable.new, 'ping', [])
+        ping
       }
       @inactivity_checker.on(:response_timeout) {
         EM::Hiredis.logger.warn("#{@name} - Closing connection because of inactivity timeout")
@@ -29,6 +29,10 @@ module EventMachine::Hiredis
       @response_queue.push(df)
       send_data(marshal(command, *args))
       return df
+    end
+
+    def ping
+      send_command(EM::DefaultDeferrable.new, 'ping', [])
     end
 
     def pending_responses
@@ -100,4 +104,5 @@ module EventMachine::Hiredis
       end
     end
   end
+
 end

@@ -95,7 +95,7 @@ describe EM::Hiredis::ConnectionManager do
         second_conn_df.succeed(second_conn)
       }
 
-      disconnected_callback.call      
+      disconnected_callback.call
 
       manager.state.should == :connected
 
@@ -140,7 +140,7 @@ describe EM::Hiredis::ConnectionManager do
       }
 
       fail_conn_df.fail('Testing')
-      disconnected_callback.call      
+      disconnected_callback.call
 
       manager.state.should == :connected
 
@@ -394,7 +394,7 @@ describe EM::Hiredis::ConnectionManager do
       second_conn_df.succeed(second_conn)
 
       manager.state.should == :connected
-    
+
       # Reconnect timers should have been cancelled
       em.remaining_timers.should == 0
     end

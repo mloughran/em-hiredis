@@ -13,6 +13,8 @@ module EventMachine::Hiredis
     include EventEmitter
     include EventMachine::Deferrable
 
+    DEFAULT_RESPONSE_TIMEOUT = 2 # seconds
+    
     attr_reader :host, :port, :password, :db
 
     # uri:
@@ -36,7 +38,7 @@ module EventMachine::Hiredis
       configure(uri)
 
       @inactivity_trigger_secs = inactivity_trigger_secs
-      @inactivity_response_timeout = inactivity_response_timeout
+      @inactivity_response_timeout = inactivity_response_timeout || DEFAULT_RESPONSE_TIMEOUT
 
       # Commands received while we are not initialized, to be sent once we are
       @command_queue = []
@@ -313,15 +315,21 @@ module EventMachine::Hiredis
 
         connection.on(:connected) {
           maybe_auth(connection).callback {
-            maybe_select(connection).callback {
-              @command_queue.each { |command_df, command, args|
-                connection.send_command(command_df, command, args)
-              }
-              @command_queue.clear
+            connection.ping.timeout(@inactivity_response_timeout).callback {
+              maybe_select(connection).callback {
+                @command_queue.each { |command_df, command, args|
+                  connection.send_command(command_df, command, args)
+                }
+                @command_queue.clear
 
-              df.succeed(connection)
+                df.succeed(connection)
+              }.errback { |e|
+                # Failure to select db counts as a connection failure
+                connection.close_connection
+                df.fail(e)
+              }
             }.errback { |e|
-              # Failure to select db counts as a connection failure
+              # Failure to ping counts as a connection failure
               connection.close_connection
               df.fail(e)
             }
@@ -367,6 +375,7 @@ module EventMachine::Hiredis
         noop
       end
     end
+
 
     def maybe_select(connection)
       if @db != 0

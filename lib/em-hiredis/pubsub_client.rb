@@ -26,6 +26,7 @@ module EventMachine::Hiredis
     include EventMachine::Deferrable
 
     RESUBSCRIBE_BATCH_SIZE = 1000
+    DEFAULT_RESPONSE_TIMEOUT = 2 # seconds
 
     attr_reader :host, :port, :password
 
@@ -45,12 +46,12 @@ module EventMachine::Hiredis
         inactivity_response_timeout = nil,
         em = EventMachine,
         reconnect_attempts = nil)
-
       @em = em
       configure(uri)
 
       @inactivity_trigger_secs = inactivity_trigger_secs
-      @inactivity_response_timeout = inactivity_response_timeout
+
+      @inactivity_response_timeout = inactivity_response_timeout || DEFAULT_RESPONSE_TIMEOUT
 
       # Subscribed channels and patterns to their callbacks
       # nil is a valid "callback", required because even if the user is using
@@ -63,6 +64,7 @@ module EventMachine::Hiredis
 
       @connection_manager.on(:connected) {
         EM::Hiredis.logger.info("#{@name} - Connected")
+
         emit(:connected)
         set_deferred_status(:succeeded)
       }
@@ -181,33 +183,36 @@ module EventMachine::Hiredis
           @inactivity_response_timeout,
           @name
         )
-
         connection.on(:connected) {
           maybe_auth(connection).callback {
+            connection.ping.timeout(@inactivity_response_timeout).callback {
+              connection.on(:message, &method(:message_callbacks))
+              connection.on(:pmessage, &method(:pmessage_callbacks))
 
-            connection.on(:message, &method(:message_callbacks))
-            connection.on(:pmessage, &method(:pmessage_callbacks))
+              [ :message,
+                :pmessage,
+                :subscribe,
+                :unsubscribe,
+                :psubscribe,
+                :punsubscribe
+              ].each do |command|
+                connection.on(command) { |*args|
+                  emit(command, *args)
+                }
+              end
 
-            [ :message,
-              :pmessage,
-              :subscribe,
-              :unsubscribe,
-              :psubscribe,
-              :punsubscribe
-            ].each do |command|
-              connection.on(command) { |*args|
-                emit(command, *args)
+              @subscriptions.keys.each_slice(RESUBSCRIBE_BATCH_SIZE) { |slice|
+                connection.send_command(:subscribe, *slice)
               }
-            end
-
-            @subscriptions.keys.each_slice(RESUBSCRIBE_BATCH_SIZE) { |slice|
-              connection.send_command(:subscribe, *slice)
+              @psubscriptions.keys.each_slice(RESUBSCRIBE_BATCH_SIZE) { |slice|
+                connection.send_command(:psubscribe, *slice)
+              }
+              df.succeed(connection)
+            }.errback { |e|
+              # Failure to ping counts as a connection failure
+              connection.close_connection
+              df.fail(e)
             }
-            @psubscriptions.keys.each_slice(RESUBSCRIBE_BATCH_SIZE) { |slice|
-              connection.send_command(:psubscribe, *slice)
-            }
-
-            df.succeed(connection)
           }.errback { |e|
             # Failure to auth counts as a connection failure
             connection.close_connection

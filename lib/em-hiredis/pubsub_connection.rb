@@ -2,15 +2,12 @@ module EventMachine::Hiredis
   module PubsubConnection
     include EventMachine::Hiredis::EventEmitter
 
-    PUBSUB_COMMANDS = %w{subscribe unsubscribe psubscribe punsubscribe}.freeze
-    PUBSUB_MESSAGES = (PUBSUB_COMMANDS + %w{message pmessage}).freeze
-
-    PING_CHANNEL = '__em-hiredis-ping'
+    PUBSUB_COMMANDS = %w{ping subscribe unsubscribe psubscribe punsubscribe}.freeze
+    PUBSUB_MESSAGES = (PUBSUB_COMMANDS + %w{message pmessage pong}).freeze
 
     def initialize(inactivity_trigger_secs = nil,
                    inactivity_response_timeout = 2,
                    name = 'unnamed connection')
-
       @name = name
       @reader = ::Hiredis::Reader.new
 
@@ -19,8 +16,7 @@ module EventMachine::Hiredis
       @inactivity_checker = InactivityChecker.new(inactivity_trigger_secs, inactivity_response_timeout)
       @inactivity_checker.on(:activity_timeout) {
         EM::Hiredis.logger.debug("#{@name} - Sending ping")
-        send_command('subscribe', PING_CHANNEL)
-        send_command('unsubscribe', PING_CHANNEL)
+        send_command('ping')
       }
       @inactivity_checker.on(:response_timeout) {
         EM::Hiredis.logger.warn("#{@name} - Closing connection because of inactivity timeout")
@@ -48,6 +44,13 @@ module EventMachine::Hiredis
     def auth(password)
       df = @auth_df = EM::DefaultDeferrable.new
       send_data(marshal('auth', password))
+      return df
+    end
+
+
+    def ping
+      df = @ping_df = EM::DefaultDeferrable.new
+      send_command('ping')
       return df
     end
 
@@ -98,6 +101,8 @@ module EventMachine::Hiredis
     end
 
     def handle_response(reply)
+      # In a password-protected Redis server it starts accepting commands only after auth succeeds.
+      # Therefore it is not possible for ping_df to complete before auth_df
       if @auth_df
         # If we're awaiting a response to auth, we will not have sent any other commands
         if reply.kind_of?(RuntimeError)
@@ -108,14 +113,24 @@ module EventMachine::Hiredis
           @auth_df.succeed(reply)
         end
         @auth_df = nil
+      elsif @ping_df
+        if reply.kind_of?(Exception)
+          e = EM::Hiredis::RedisError.new(reply.message)
+          e.redis_error = reply
+          @ping_df.fail(e)
+        else
+          @ping_df.succeed(reply)
+        end
+        @ping_df = nil
       else
         type = reply[0]
         if PUBSUB_MESSAGES.include?(type)
           emit(type.to_sym, *reply[1..-1])
         else
-          EM::Hireds.logger.error("#{@name} - unrecognised response: #{reply.inspect}")
+          EM::Hiredis.logger.error("#{@name} - unrecognised response: #{reply.inspect}")
         end
       end
     end
   end
 end
+

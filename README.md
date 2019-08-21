@@ -79,11 +79,6 @@ This configures a `PING` command to be sent if 5 seconds elapse without receivin
 
 This configuration is per client, you may choose different value for clients with different expected traffic patterns, or activate it on some and not at all on others.
 
-### PING and Pubsub
-
-Because the Redis Pubsub protocol limits the set of valid commands on a connection once it is in "Pubsub" mode, `PING` is not supported in this case (though it may be in future, see https://github.com/antirez/redis/issues/420). In order to create some valid request-response traffic on the connection, a Pubsub connection will issue `SUBSCRIBE "__em-hiredis-ping"`, followed by a corresponding `UNSUBSCRIBE` immediately on success of the subscribe.
-While less than ideal, this is the case where an application layer inactivity check is most valuable, and so the trade off is reasonable until `PING` is supported correctly on Pubsub connections.
-
 ### Close to the metal
 
 Basically just bind to `:message` and `:pmessage` events:
