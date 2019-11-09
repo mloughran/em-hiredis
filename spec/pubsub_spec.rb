@@ -4,7 +4,7 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
   describe "subscribing" do
     it "should return deferrable which succeeds with subscribe call result" do
       connect do |redis|
-        df = redis.pubsub.subscribe("channel") { }
+        df = redis.pubsub_client.subscribe("channel") { }
         df.should be_kind_of(EventMachine::DefaultDeferrable)
         df.callback { |subscription_count|
           # Subscribe response from redis - indicates that subscription has
@@ -18,7 +18,7 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
 
     it "should run the passed block when message received" do
       connect do |redis|
-        redis.pubsub.subscribe("channel") { |message|
+        redis.pubsub_client.subscribe("channel") { |message|
           message.should == 'hello'
           done
         }.callback {
@@ -33,7 +33,7 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
           message.should == 'hello'
           done
         }
-        redis.pubsub.subscribe("channel", proc).callback {
+        redis.pubsub_client.subscribe("channel", proc).callback {
           redis.publish('channel', 'hello')
         }
       end
@@ -48,9 +48,9 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
           message.should == 'hello'
           done
         }
-        redis.pubsub.subscribe("channel", proc1)
-        redis.pubsub.subscribe("channel", proc2).callback {
-          redis.pubsub.unsubscribe_proc("channel", proc1)
+        redis.pubsub_client.subscribe("channel", proc1)
+        redis.pubsub_client.subscribe("channel", proc2).callback {
+          redis.pubsub_client.unsubscribe_proc("channel", proc1)
           redis.publish("channel", "hello")
         }
       end
@@ -59,11 +59,11 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
     it "should unsubscribe from redis on last proc unsubscription" do
       connect do |redis|
         proc = Proc.new { |message| }
-        redis.pubsub.subscribe("channel", proc).callback { |subs_count|
+        redis.pubsub_client.subscribe("channel", proc).callback { |subs_count|
           subs_count.should == 1
-          redis.pubsub.unsubscribe_proc("channel", proc).callback {
+          redis.pubsub_client.unsubscribe_proc("channel", proc).callback {
             # Slightly awkward way to check that unsubscribe happened:
-            redis.pubsub.subscribe('channel2').callback { |count|
+            redis.pubsub_client.subscribe('channel2').callback { |count|
               # If count is 1 this implies that channel unsubscribed
               count.should == 1
               done
@@ -76,14 +76,14 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
     it "should allow unsubscribing from redis channel, including all callbacks, and return deferrable for redis unsubscribe" do
       connect do |redis|
         # Raw pubsub event
-        redis.pubsub.on('message') { |channel, message| fail }
+        redis.pubsub_client.on('message') { |channel, message| fail }
         # Block subscription
-        redis.pubsub.subscribe("channel") { |m| fail } # block
+        redis.pubsub_client.subscribe("channel") { |m| fail } # block
         # Proc example
-        df = redis.pubsub.subscribe("channel", Proc.new { |m| fail })
+        df = redis.pubsub_client.subscribe("channel", Proc.new { |m| fail })
 
         df.callback {
-          redis.pubsub.unsubscribe("channel").callback { |remaining_subs|
+          redis.pubsub_client.unsubscribe("channel").callback { |remaining_subs|
             remaining_subs.should == 0
             redis.publish("channel", "hello") {
               done
@@ -98,7 +98,7 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
     channel = "channel"
     callback_count = 0
     connect do |redis|
-      redis.pubsub.on(:subscribe) { |channel, subscription_count|
+      redis.pubsub_client.on(:subscribe) { |channel, subscription_count|
         # 2. Get subscribe callback
         callback_count += 1
         channel.should == channel
@@ -108,7 +108,7 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
         redis.publish(channel, 'foo')
       }
 
-      redis.pubsub.on(:message) { |channel, message|
+      redis.pubsub_client.on(:message) { |channel, message|
         # 4. Get message callback
         callback_count += 1
         channel.should == channel
@@ -119,7 +119,7 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
       }
 
       # 1. Subscribe to channel
-      redis.pubsub.subscribe(channel)
+      redis.pubsub_client.subscribe(channel)
     end
   end
 
@@ -127,10 +127,10 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
     callback_count = 0
     connect do |redis|
       # 1. Subscribe to channels
-      redis.pubsub.subscribe('channel1') {
+      redis.pubsub_client.subscribe('channel1') {
         callback_count += 1
       }
-      redis.pubsub.subscribe('channel2') {
+      redis.pubsub_client.subscribe('channel2') {
         callback_count += 1
         EM.next_tick {
           # 4. Success if both messages have been received
@@ -140,7 +140,7 @@ describe EventMachine::Hiredis::PubsubClient, '(un)subscribe' do
       }.callback { |subscription_count|
         subscription_count.should == 2
         # 2. Subscriptions complete. Now force disconnect
-        redis.pubsub.instance_variable_get(:@connection).close_connection
+        redis.pubsub_client.instance_variable_get(:@connection).close_connection
 
         EM.add_timer(0.1) {
           # 3. After giving time to reconnect publish to both channels
@@ -158,7 +158,7 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
   describe "psubscribing" do
     it "should return deferrable which succeeds with psubscribe call result" do
       connect do |redis|
-        df = redis.pubsub.psubscribe("channel") { }
+        df = redis.pubsub_client.psubscribe("channel") { }
         df.should be_kind_of(EventMachine::DefaultDeferrable)
         df.callback { |subscription_count|
           # Subscribe response from redis - indicates that subscription has
@@ -172,7 +172,7 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
 
     it "should run the passed block when message received" do
       connect do |redis|
-        redis.pubsub.psubscribe("channel:*") { |channel, message|
+        redis.pubsub_client.psubscribe("channel:*") { |channel, message|
           channel.should == 'channel:foo'
           message.should == 'hello'
           done
@@ -189,7 +189,7 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
           message.should == 'hello'
           done
         }
-        redis.pubsub.psubscribe("channel:*", proc).callback {
+        redis.pubsub_client.psubscribe("channel:*", proc).callback {
           redis.publish('channel:foo', 'hello')
         }
       end
@@ -205,9 +205,9 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
           message.should == 'hello'
           done
         }
-        redis.pubsub.psubscribe("channel:*", proc1)
-        redis.pubsub.psubscribe("channel:*", proc2).callback {
-          redis.pubsub.punsubscribe_proc("channel:*", proc1)
+        redis.pubsub_client.psubscribe("channel:*", proc1)
+        redis.pubsub_client.psubscribe("channel:*", proc2).callback {
+          redis.pubsub_client.punsubscribe_proc("channel:*", proc1)
           redis.publish("channel:foo", "hello")
         }
       end
@@ -216,11 +216,11 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
     it "should punsubscribe from redis on last proc punsubscription" do
       connect do |redis|
         proc = Proc.new { |message| }
-        redis.pubsub.psubscribe("channel:*", proc).callback { |subs_count|
+        redis.pubsub_client.psubscribe("channel:*", proc).callback { |subs_count|
           subs_count.should == 1
-          redis.pubsub.punsubscribe_proc("channel:*", proc).callback {
+          redis.pubsub_client.punsubscribe_proc("channel:*", proc).callback {
             # Slightly awkward way to check that unsubscribe happened:
-            redis.pubsub.psubscribe('channel2').callback { |count|
+            redis.pubsub_client.psubscribe('channel2').callback { |count|
               # If count is 1 this implies that channel unsubscribed
               count.should == 1
               done
@@ -233,14 +233,14 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
     it "should allow punsubscribing from redis channel, including all callbacks, and return deferrable for redis punsubscribe" do
       connect do |redis|
         # Raw pubsub event
-        redis.pubsub.on('pmessage') { |pattern, channel, message| fail }
+        redis.pubsub_client.on('pmessage') { |pattern, channel, message| fail }
         # Block subscription
-        redis.pubsub.psubscribe("channel") { |c, m| fail } # block
+        redis.pubsub_client.psubscribe("channel") { |c, m| fail } # block
         # Proc example
-        df = redis.pubsub.psubscribe("channel", Proc.new { |c, m| fail })
+        df = redis.pubsub_client.psubscribe("channel", Proc.new { |c, m| fail })
 
         df.callback {
-          redis.pubsub.punsubscribe("channel").callback { |remaining_subs|
+          redis.pubsub_client.punsubscribe("channel").callback { |remaining_subs|
             remaining_subs.should == 0
             redis.publish("channel", "hello") {
               done
@@ -254,7 +254,7 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
   it "should expose raw pattern pubsub events from redis" do
     callback_count = 0
     connect do |redis|
-      redis.pubsub.on(:psubscribe) { |pattern, subscription_count|
+      redis.pubsub_client.on(:psubscribe) { |pattern, subscription_count|
         # 2. Get subscribe callback
         callback_count += 1
         pattern.should == "channel:*"
@@ -264,7 +264,7 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
         redis.publish('channel:foo', 'foo')
       }
 
-      redis.pubsub.on(:pmessage) { |pattern, channel, message|
+      redis.pubsub_client.on(:pmessage) { |pattern, channel, message|
         # 4. Get message callback
         callback_count += 1
         pattern.should == 'channel:*'
@@ -276,7 +276,7 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
       }
 
       # 1. Subscribe to channel
-      redis.pubsub.psubscribe('channel:*')
+      redis.pubsub_client.psubscribe('channel:*')
     end
   end
 
@@ -284,12 +284,12 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
     callback_count = 0
     connect do |redis|
       # 1. Subscribe to channels
-      redis.pubsub.psubscribe('foo:*') { |channel, message|
+      redis.pubsub_client.psubscribe('foo:*') { |channel, message|
         channel.should == 'foo:a'
         message.should == 'hello foo'
         callback_count += 1
       }
-      redis.pubsub.psubscribe('bar:*') { |channel, message|
+      redis.pubsub_client.psubscribe('bar:*') { |channel, message|
         channel.should == 'bar:b'
         message.should == 'hello bar'
         callback_count += 1
@@ -301,7 +301,7 @@ describe EventMachine::Hiredis::PubsubClient, 'p(un)subscribe' do
       }.callback { |subscription_count|
         subscription_count.should == 2
         # 2. Subscriptions complete. Now force disconnect
-        redis.pubsub.instance_variable_get(:@connection).close_connection
+        redis.pubsub_client.instance_variable_get(:@connection).close_connection
 
         EM.add_timer(0.1) {
           # 3. After giving time to reconnect publish to both channels
