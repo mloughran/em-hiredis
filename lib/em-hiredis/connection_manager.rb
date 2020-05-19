@@ -44,12 +44,12 @@ module EventMachine::Hiredis
     #   deferrable which succeeds with a connected and initialised instance
     #   of EMConnection or fails if the connection was unsuccessful.
     #   Failures will be retried
-    def initialize(connection_factory, em = EM, reconnect_attempts)
+    def initialize(connection_factory:, reconnect_attempts: nil, em: EM)
 
-      @reconnect_attempts = initialise_reconnect_attempts(reconnect_attempts)
       @em = em
       @connection_factory = connection_factory
 
+      @reconnect_attempts = reconnect_attempts || DEFAULT_RECONNECT_ATTEMPTS
       @reconnect_attempt = 0
 
       @sm = StateMachine.new
@@ -171,12 +171,5 @@ module EventMachine::Hiredis
         end
       end
     end
-
-    private
-
-      def initialise_reconnect_attempts(reconnect_attempts)
-        reconnect_attempts ||= DEFAULT_RECONNECT_ATTEMPTS
-        return reconnect_attempts
-      end
   end
 end
