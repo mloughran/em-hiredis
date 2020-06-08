@@ -74,7 +74,7 @@ describe EventMachine::Hiredis::Lock do
   it "times out" do
     start(3) {
       new_lock.acquire.callback {
-        EM.add_timer(2) {
+        EM.add_timer(2.2) {
           new_lock.acquire.callback {
             done
           }.errback { |e|
