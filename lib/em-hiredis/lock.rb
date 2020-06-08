@@ -13,7 +13,7 @@ module EM::Hiredis
     def onexpire(&blk); @onexpire = blk; end
 
     def initialize(redis, key, timeout)
-      unless timeout.kind_of?(Fixnum) && timeout >= 1
+      unless timeout.kind_of?(Integer) && timeout >= 1
         raise "Timeout must be an integer and >= 1s"
       end
       @redis, @key, @timeout = redis, key, timeout
@@ -58,7 +58,7 @@ module EM::Hiredis
       df = EM::DefaultDeferrable.new
       @redis.lock_release([@key], [@token]).callback { |keys_removed|
         # DEBUGGING WTF
-        if !keys_removed.is_a?(Fixnum)
+        if !keys_removed.is_a?(Integer)
           EM::Hiredis.logger.error "#{to_s}: Received String where expected int [#{keys_removed.inspect}]"
           df.fail("WTF")
         elsif keys_removed > 0

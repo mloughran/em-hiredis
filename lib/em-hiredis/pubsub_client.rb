@@ -60,7 +60,11 @@ module EventMachine::Hiredis
       @subscriptions = {}
       @psubscriptions = {}
 
-      @connection_manager = ConnectionManager.new(method(:factory_connection), em, reconnect_attempts)
+      @connection_manager = ConnectionManager.new(
+        connection_factory: method(:factory_connection),
+        reconnect_attempts: reconnect_attempts,
+        em: em,
+      )
 
       @connection_manager.on(:connected) {
         EM::Hiredis.logger.info("#{@name} - Connected")

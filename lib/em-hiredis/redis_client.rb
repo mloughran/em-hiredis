@@ -14,7 +14,7 @@ module EventMachine::Hiredis
     include EventMachine::Deferrable
 
     DEFAULT_RESPONSE_TIMEOUT = 2 # seconds
-    
+
     attr_reader :host, :port, :password, :db
 
     # uri:
@@ -43,7 +43,11 @@ module EventMachine::Hiredis
       # Commands received while we are not initialized, to be sent once we are
       @command_queue = []
 
-      @connection_manager = ConnectionManager.new(method(:factory_connection), em, reconnect_attempts)
+      @connection_manager = ConnectionManager.new(
+        connection_factory: method(:factory_connection),
+        reconnect_attempts: reconnect_attempts,
+        em: em,
+      )
 
       @connection_manager.on(:connected) {
         EM::Hiredis.logger.info("#{@name} - Connected")

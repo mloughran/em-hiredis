@@ -31,7 +31,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
       conn_factory = mock('connection factory')
 
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       initial_conn_df = EM::DefaultDeferrable.new
       second_conn_df = EM::DefaultDeferrable.new
@@ -65,7 +65,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
       conn_factory = mock('connection factory')
 
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       initial_conn_df = EM::DefaultDeferrable.new
       second_conn_df = EM::DefaultDeferrable.new
@@ -107,7 +107,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
       conn_factory = mock('connection factory')
 
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       initial_conn_df = EM::DefaultDeferrable.new
       fail_conn_df = EM::DefaultDeferrable.new
@@ -152,7 +152,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
 
       conn_factory = mock('connection factory')
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       initial_conn_df = EM::DefaultDeferrable.new
       second_conn_df = EM::DefaultDeferrable.new
@@ -190,7 +190,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
 
       conn_factory = mock('connection factory')
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       initial_conn_df = EM::DefaultDeferrable.new
       second_conn_df = EM::DefaultDeferrable.new
@@ -222,7 +222,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
 
       conn_factory = mock('connection factory')
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       initial_conn_df = EM::DefaultDeferrable.new
       auto_reconnect_df = EM::DefaultDeferrable.new
@@ -265,7 +265,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
       conn_factory = mock('connection factory')
 
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       initial_conn_df = EM::DefaultDeferrable.new
       second_conn_df = EM::DefaultDeferrable.new
@@ -307,7 +307,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
       conn_factory = mock('connection factory')
 
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       # Five failed attempts takes us to failed, then one successful at the end
       fail_conn_df = EM::DefaultDeferrable.new
@@ -350,7 +350,7 @@ describe EM::Hiredis::ConnectionManager do
       em = EM::Hiredis::TimeMockEventMachine.new
 
       conn_factory = mock('connection factory')
-      manager = EM::Hiredis::ConnectionManager.new(conn_factory, em)
+      manager = EM::Hiredis::ConnectionManager.new(connection_factory: conn_factory, em: em)
 
       # Connect successfully, then five failed attempts takes us to failed,
       # then one successful at the end
