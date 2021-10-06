@@ -16,8 +16,8 @@ module EventMachine::Hiredis
 
     attr_reader :host, :port, :password, :db
 
-    def initialize(host = 'localhost', port = 6379, password = nil, db = nil)
-      @host, @port, @password, @db = host, port, password, db
+    def initialize(host = 'localhost', port = 6379, password = nil, db = nil, tls = false)
+      @host, @port, @password, @db, @tls = host, port, password, db, tls
       @defs = []
       @command_queue = []
 
@@ -50,6 +50,7 @@ module EventMachine::Hiredis
       else
         @host = uri.host
         @port = uri.port
+        @tls = uri.scheme == 'rediss'
         @password = uri.password
         path = uri.path[1..-1]
         @db = path.to_i # Empty path => 0
@@ -71,7 +72,7 @@ module EventMachine::Hiredis
 
     def connect
       @auto_reconnect = true
-      @connection = EM.connect(@host, @port, Connection, @host, @port)
+      @connection = EM.connect(@host, @port, Connection, @host, @port, @tls)
 
       @connection.on(:closed) do
         cancel_inactivity_checks
@@ -223,7 +224,7 @@ module EventMachine::Hiredis
 
     def reconnect
       @reconnecting = true
-      @connection.reconnect @host, @port
+      @connection.reconnect @host, @port, @tls
       EM::Hiredis.logger.info("#{@connection} Reconnecting")
     end
 
