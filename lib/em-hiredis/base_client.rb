@@ -110,7 +110,7 @@ module EventMachine::Hiredis
         @reconnect_failed_count = 0
         @failed = false
 
-        auth(@password) if @password
+        auth(@password) if @password && @password != ''
         select(@db) unless @db == 0
 
         @command_queue.each do |df, command, args|
