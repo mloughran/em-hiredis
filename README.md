@@ -164,6 +164,10 @@ This configuration is per client, you may choose different value for clients wit
 Because the Redis Pubsub protocol limits the set of valid commands on a connection once it is in "Pubsub" mode, `PING` is not supported in this case (though it may be in future, see https://github.com/antirez/redis/issues/420). In order to create some valid request-response traffic on the connection, a Pubsub connection will issue `SUBSCRIBE "__em-hiredis-ping"`, followed by a corresponding `UNSUBSCRIBE` immediately on success of the subscribe.
 While less than ideal, this is the case where an application layer inactivity check is most valuable, and so the trade off is reasonable until `PING` is supported correctly on Pubsub connections.
 
+## TLS
+
+Redis 6 added TLS support. EM::Hiredis will interpret a rediss://... URL (note the extra s) as requiring TLS.
+
 ## Developing
 
 You need bundler and a local redis server running on port 6379 to run the test suite.
