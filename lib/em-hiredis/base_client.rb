@@ -42,17 +42,26 @@ module EventMachine::Hiredis
     # is useful for example when failing over to a slave connection at runtime
     #
     def configure(uri_string)
-      uri = URI(uri_string)
+      if options.is_a?(String)
+        uri = URI(options)
 
-      if uri.scheme == "unix"
-        @host = uri.path
-        @port = nil
-      else
-        @host = uri.host
-        @port = uri.port
-        @password = uri.password
-        path = uri.path[1..-1]
+        if uri.scheme == "unix"
+          @host = uri.path
+          @port = nil
+        else
+          @host = uri.host
+          @port = uri.port
+          @password = uri.password
+          path = uri.path[1..-1]
+          @db = path.to_i # Empty path => 0
+        end
+      elsif options.is_a?(Hash)
+        @host = options[:host]
+        @port = options[:port]
+        @password = options[:password]
+        path = options[:db]
         @db = path.to_i # Empty path => 0
+        @args = options.except(:host, :password, :port, :path, :db)
       end
     end
 
@@ -71,7 +80,7 @@ module EventMachine::Hiredis
 
     def connect
       @auto_reconnect = true
-      @connection = EM.connect(@host, @port, Connection, @host, @port)
+      @connection = EM.connect(@host, @port, Connection, @host, @port, @args)
 
       @connection.on(:closed) do
         cancel_inactivity_checks

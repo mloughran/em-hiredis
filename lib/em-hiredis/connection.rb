@@ -4,10 +4,17 @@ module EventMachine::Hiredis
   class Connection < EM::Connection
     include EventMachine::Hiredis::EventEmitter
 
-    def initialize(host, port)
+    def initialize(host, port, args={})
       super
       @host, @port = host, port
       @name = "[em-hiredis #{@host}:#{@port}]"
+      @args = args
+    end
+
+    def post_init
+      if @args[:ssl]
+        start_tls(@args[:ssl_params])
+      end
     end
 
     def reconnect(host, port)
