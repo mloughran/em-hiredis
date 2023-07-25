@@ -41,7 +41,7 @@ module EventMachine::Hiredis
     # In usual operation, the uri should be passed to initialize. This method
     # is useful for example when failing over to a slave connection at runtime
     #
-    def configure(uri_string)
+    def configure(options)
       if options.is_a?(String)
         uri = URI(options)
 
