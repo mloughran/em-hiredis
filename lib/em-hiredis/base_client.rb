@@ -59,8 +59,7 @@ module EventMachine::Hiredis
         @host = options[:host]
         @port = options[:port]
         @password = options[:password]
-        path = options[:db]
-        @db = path.to_i # Empty path => 0
+        @db = options[:db].to_i # Empty path => 0
         @args = options.except(:host, :password, :port, :path, :db)
       end
     end
