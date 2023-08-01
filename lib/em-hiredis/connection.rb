@@ -7,7 +7,8 @@ module EventMachine::Hiredis
     def initialize(host, port, args={})
       super
       @host, @port = host, port
-      @name = "[em-hiredis #{@host}:#{@port}]"
+      tls = args[:ssl].present?
+      @name = "[em-hiredis #{@host}:#{@port} #{tls}]"
       @args = args
     end
 

@@ -2,8 +2,8 @@ require 'digest/sha1'
 
 module EventMachine::Hiredis
   class Client < BaseClient
-    def self.connect(host = 'localhost', port = 6379)
-      new(host, port).connect
+    def self.connect(host = 'localhost', port = 6379, args = {})
+      new(host, port, args).connect
     end
 
     def self.load_scripts_from(dir)
@@ -87,7 +87,7 @@ module EventMachine::Hiredis
     #
     def pubsub
       @pubsub ||= begin
-        PubsubClient.new(@host, @port, @password, @db).connect
+        PubsubClient.new(@host, @port, @password, @db, @args).connect
       end
     end
 
