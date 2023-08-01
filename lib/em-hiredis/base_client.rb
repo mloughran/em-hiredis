@@ -16,8 +16,8 @@ module EventMachine::Hiredis
 
     attr_reader :host, :port, :password, :db
 
-    def initialize(host = 'localhost', port = 6379, password = nil, db = nil)
-      @host, @port, @password, @db = host, port, password, db
+    def initialize(host = 'localhost', port = 6379, password = nil, db = nil, args={})
+      @host, @port, @password, @db, @args = host, port, password, db, args
       @defs = []
       @command_queue = []
 
@@ -41,18 +41,26 @@ module EventMachine::Hiredis
     # In usual operation, the uri should be passed to initialize. This method
     # is useful for example when failing over to a slave connection at runtime
     #
-    def configure(uri_string)
-      uri = URI(uri_string)
+    def configure(options)
+      if options.is_a?(String)
+        uri = URI(options)
 
-      if uri.scheme == "unix"
-        @host = uri.path
-        @port = nil
-      else
-        @host = uri.host
-        @port = uri.port
-        @password = uri.password
-        path = uri.path[1..-1]
-        @db = path.to_i # Empty path => 0
+        if uri.scheme == "unix"
+          @host = uri.path
+          @port = nil
+        else
+          @host = uri.host
+          @port = uri.port
+          @password = uri.password
+          path = uri.path[1..-1]
+          @db = path.to_i # Empty path => 0
+        end
+      elsif options.is_a?(Hash)
+        @host = options[:host]
+        @port = options[:port]
+        @password = options[:password]
+        @db = options[:db].to_i # Empty path => 0
+        @args = options.except(:host, :password, :port, :path, :db)
       end
     end
 
@@ -71,7 +79,7 @@ module EventMachine::Hiredis
 
     def connect
       @auto_reconnect = true
-      @connection = EM.connect(@host, @port, Connection, @host, @port)
+      @connection = EM.connect(@host, @port, Connection, @host, @port, @args)
 
       @connection.on(:closed) do
         cancel_inactivity_checks
